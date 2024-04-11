@@ -1,0 +1,19 @@
+<RCC>
+    <qresource prefix="/">
+        <file>lib/Accont.png</file>
+        <file>lib/default.jpg</file>
+        <file>lib/find.gif</file>
+        <file>lib/guanbi.png</file>
+        <file>lib/Keyboard.png</file>
+        <file>lib/Loge.png</file>
+        <file>lib/main.gif</file>
+        <file>lib/pwd.png</file>
+        <file>lib/System.png</file>
+        <file>lib/zuixiaohua.png</file>
+        <file>lib/guanbi2.png</file>
+        <file>lib/shangjiantou.png</file>
+        <file>lib/xiajiantou.png</file>
+        <file>lib/tishi.png</file>
+        <file>lib/gantanhao.png</file>
+    </qresource>
+</RCC>
