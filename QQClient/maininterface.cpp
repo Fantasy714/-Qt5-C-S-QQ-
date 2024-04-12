@@ -32,6 +32,8 @@ MainInterface::MainInterface(QWidget *parent) :
     connect(m_mytcp,&TcpThread::isConnectingWithServer,m_log,&Login::isConnectingWithServer);
     connect(m_log,&Login::LoginClose,m_mytcp,&TcpThread::GetClose);
     connect(m_log,&Login::LoginToServer,m_mytcp,&TcpThread::LoginToServer);
+    connect(m_mytcp,&TcpThread::sendResultToLogin,m_log,&Login::GetResultForSer);
+    connect(m_mytcp,&TcpThread::sendResultToMainInterFace,this,&MainInterface::GetResultFromSer);
     m_mytcp->moveToThread(thread);
 
     //连接到服务器
@@ -60,4 +62,10 @@ void MainInterface::ShowAccount(bool isfind)
     connect(m_mytcp,&TcpThread::sendResultToAccMsg,m_acc,&Account::recvResultFromTcp);
     m_log->hide();
     m_acc->show();
+}
+
+void MainInterface::GetResultFromSer()
+{
+    m_log->hide();
+    this->show();
 }

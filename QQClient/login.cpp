@@ -45,21 +45,7 @@ Login::Login(QWidget *parent)
     //初始化系统托盘
     InitSysTrayicon();
 
-    //初始化提示栏
-    QLabel * pt = new QLabel(this);
-    pt->setPixmap(QPixmap(":/lib/tishi.png"));
-    pt->setFixedSize(22,22);
-    pt->setScaledContents(true);
-    m_tishi = new QLabel(this);
-    m_tishi->setStyleSheet("QLabel{font-size:13px;}");
-    m_tishi->setText("登录超时，请检查网络或本机防火墙设置。");
-    QHBoxLayout * la = new QHBoxLayout;
-    la->setContentsMargins(0,0,0,0);
-    la->addWidget(pt);
-    la->addWidget(m_tishi);
-    ui->label_2->setLayout(la);
-
-    ui->label_2->hide();
+    ui->TipsWidget->hide();
     ui->PwdErr->hide();
     ui->shuruacc->hide();
     ui->shurupwd->hide();
@@ -105,9 +91,9 @@ void Login::InitSysTrayicon()
 
     m_quit = new QAction("退出",this);
     connect(m_quit,&QAction::triggered,this,&QApplication::quit);
-
     m_menu = new QMenu(this);
     m_menu->addAction(m_show);
+
     m_menu->addSeparator();
     m_menu->addAction(m_quit);
 
@@ -155,10 +141,11 @@ void Login::on_FindBtn_clicked()
     if(!isConnecting)
     {
         //如果当前未显示提示信息则显示提示五秒钟
-        if(ui->label_2->isHidden())
+        if(ui->TipsWidget->isHidden())
         {
-            ui->label_2->show();
-            QTimer::singleShot(5000,ui->label_2,SLOT(hide()));
+            ui->tipsLabel->setText("登录超时，请检查网络或本机防火墙设置。");
+            ui->TipsWidget->show();
+            QTimer::singleShot(5000,ui->TipsWidget,SLOT(hide()));
         }
     }
     else
@@ -172,10 +159,11 @@ void Login::on_NewAcBtn_clicked()
 {
     if(!isConnecting)
     {
-        if(ui->label_2->isHidden())
+        if(ui->TipsWidget->isHidden())
         {
-            ui->label_2->show();
-            QTimer::singleShot(5000,ui->label_2,SLOT(hide()));
+            ui->tipsLabel->setText("登录超时，请检查网络或本机防火墙设置。");
+            ui->TipsWidget->show();
+            QTimer::singleShot(5000,ui->TipsWidget,SLOT(hide()));
         }
     }
     else
@@ -347,17 +335,38 @@ void Login::deleteUserData(QString acc)
 
 }
 
+void Login::GetResultForSer(QString result)
+{
+    if(result == "账号密码错误")
+    {
+        qDebug() << "账号密码错误";
+        ui->PwdErr->show();
+    }
+    else if(result == "重复登录")
+    {
+        qDebug() << "重复登录";
+        if(ui->TipsWidget->isHidden())
+        {
+            qDebug() << "changing text";
+            ui->tipsLabel->setText("你已在QQ登录了" + ui->AccountLine->text() + "，不能重复登录。");
+            ui->TipsWidget->show();
+            QTimer::singleShot(5000,ui->TipsWidget,SLOT(hide()));
+        }
+    }
+}
+
 void Login::on_pushButton_clicked()
 {
     //检查是否登录服务器
     if(!isConnecting)
     {
-        if(ui->label_2->isHidden())
+        if(ui->TipsWidget->isHidden())
         {
-            ui->label_2->show();
-            QTimer::singleShot(5000,ui->label_2,SLOT(hide()));
-            return;
+            ui->tipsLabel->setText("登录超时，请检查网络或本机防火墙设置。");
+            ui->TipsWidget->show();
+            QTimer::singleShot(5000,ui->TipsWidget,SLOT(hide()));
         }
+        return;
     }
     //获取用户输入账号密码
     QString acc = ui->AccountLine->text();

@@ -903,7 +903,7 @@ QComboBox::down-arrow
 }</string>
        </property>
        <property name="editable">
-        <bool>true</bool>
+        <bool>false</bool>
        </property>
       </widget>
       <zorder>comboBox</zorder>
@@ -1096,43 +1096,6 @@ QPushButton:pressed
     </item>
    </layout>
   </widget>
-  <widget class="QLabel" name="label_2">
-   <property name="geometry">
-    <rect>
-     <x>0</x>
-     <y>300</y>
-     <width>430</width>
-     <height>30</height>
-    </rect>
-   </property>
-   <property name="minimumSize">
-    <size>
-     <width>430</width>
-     <height>30</height>
-    </size>
-   </property>
-   <property name="maximumSize">
-    <size>
-     <width>430</width>
-     <height>30</height>
-    </size>
-   </property>
-   <property name="styleSheet">
-    <string notr="true">QLabel
-{
-	background-color:rgb(255, 251, 197);
-}</string>
-   </property>
-   <property name="text">
-    <string/>
-   </property>
-   <property name="textFormat">
-    <enum>Qt::AutoText</enum>
-   </property>
-   <property name="scaledContents">
-    <bool>false</bool>
-   </property>
-  </widget>
   <widget class="QWidget" name="PwdErr" native="true">
    <property name="geometry">
     <rect>
@@ -1283,10 +1246,24 @@ QPushButton:press
      </item>
     </layout>
    </widget>
+   <widget class="QToolButton" name="toolButton">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>260</y>
+      <width>37</width>
+      <height>18</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>...</string>
+    </property>
+   </widget>
    <zorder>layoutWidget</zorder>
    <zorder>label_11</zorder>
    <zorder>pushButton_2</zorder>
    <zorder>label_10</zorder>
+   <zorder>toolButton</zorder>
   </widget>
   <widget class="QLabel" name="shurupwd">
    <property name="geometry">
@@ -1332,6 +1309,107 @@ QPushButton:press
     <string>请输入账号后再登录</string>
    </property>
   </widget>
+  <widget class="QWidget" name="TipsWidget" native="true">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>300</y>
+     <width>430</width>
+     <height>30</height>
+    </rect>
+   </property>
+   <property name="minimumSize">
+    <size>
+     <width>430</width>
+     <height>30</height>
+    </size>
+   </property>
+   <property name="maximumSize">
+    <size>
+     <width>430</width>
+     <height>30</height>
+    </size>
+   </property>
+   <layout class="QHBoxLayout" name="horizontalLayout_3">
+    <property name="spacing">
+     <number>0</number>
+    </property>
+    <property name="leftMargin">
+     <number>0</number>
+    </property>
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>0</number>
+    </property>
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
+    <item>
+     <widget class="QLabel" name="IconLabel">
+      <property name="minimumSize">
+       <size>
+        <width>25</width>
+        <height>30</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>25</width>
+        <height>30</height>
+       </size>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">QLabel
+{
+	background-color:rgb(255, 251, 197);
+}</string>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+      <property name="pixmap">
+       <pixmap resource="lib.qrc">:/lib/tishi.png</pixmap>
+      </property>
+      <property name="scaledContents">
+       <bool>false</bool>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="tipsLabel">
+      <property name="minimumSize">
+       <size>
+        <width>405</width>
+        <height>30</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>405</width>
+        <height>30</height>
+       </size>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">QLabel
+{
+	background-color:rgb(255, 251, 197);
+}</string>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+      <property name="textFormat">
+       <enum>Qt::AutoText</enum>
+      </property>
+      <property name="scaledContents">
+       <bool>false</bool>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
   <zorder>MovieLabel</zorder>
   <zorder>widget</zorder>
   <zorder>label</zorder>
@@ -1339,9 +1417,9 @@ QPushButton:press
   <zorder>widget_2</zorder>
   <zorder>NewAcBtn</zorder>
   <zorder>widget_3</zorder>
-  <zorder>label_2</zorder>
   <zorder>shurupwd</zorder>
   <zorder>shuruacc</zorder>
+  <zorder>TipsWidget</zorder>
   <zorder>PwdErr</zorder>
  </widget>
  <resources>

@@ -113,8 +113,21 @@ void MainWindow::getThreadMsg(QString type,int account,QString msg,int target)
     }
 }
 
-void MainWindow::UserOnLine(int acc, QTcpSocket *sock)
+void MainWindow::UserOnLine(int acc, quint16 sockport)
 {
-    qDebug() << "账号： " << acc << "已加入在线哈希表";
-    m_onlines.insert(acc,sock);
+    QTcpSocket * thissock = nullptr;
+    for(auto sock : m_sockets)
+    {
+        if(sock->peerPort() == sockport)
+        {
+            qDebug() << "找到该套接字";
+            thissock = sock;
+            break;
+        }
+    }
+    if(thissock != nullptr)
+    {
+        m_onlines.insert(acc,thissock);
+        qDebug() << "成功加入在线用户哈希表";
+    }
 }

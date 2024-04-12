@@ -4,6 +4,9 @@
 #include <QObject>
 #include <QTcpSocket>
 #include <QTimer>
+#include <QDir>
+#include <QFile>
+#include <QCoreApplication>
 
 class TcpThread : public QObject
 {
@@ -25,6 +28,8 @@ public slots:
     void LoginToServer(bool isfirst,int acc,QString pwd); //登录
 signals:
     void sendResultToAccMsg(QString type,QString pwd,QString result); //发送结果回注册界面
+    void sendResultToLogin(QString result); //发送结果回登录界面
+    void sendResultToMainInterFace(); //发送结果回登录界面
     void isConnectingWithServer(bool onl); //连接成功时发出true,服务器断开连接发送false
 private:
     QTcpSocket * m_tcp = nullptr; //tcp套接字
@@ -37,6 +42,9 @@ private:
     QTimer * m_timer = nullptr; //定时器
     bool isFirstLogin; //是否是第一次登录
     QString m_fileName; //发送文件的地址
+    QString m_path = QCoreApplication::applicationDirPath() + "/userdata"; //用户数据文件夹位置
+    QDir m_dir; //操作文件夹
+    QFile m_file; //操作文件
 };
 
 #endif // TCPTHREAD_H

@@ -4,6 +4,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QJsonValue>
+#include <QFileInfo>
 
 QReadWriteLock WorkThread::mutex;
 
@@ -102,8 +103,9 @@ void WorkThread::recvData(QByteArray data,QByteArray filedata)
     }
 }
 
-void WorkThread::ReplyToJson(QString type, QString pwd, QString result,QString fileName)
+void WorkThread::ReplyToJson(QString type, QString pwd, QString result,QString fileName,int acc)
 {
+    QString sendFileName;
     //qDebug() << "开始回应客户端";
     QJsonObject obj;
     obj.insert("type",type);
@@ -115,6 +117,36 @@ void WorkThread::ReplyToJson(QString type, QString pwd, QString result,QString f
     {
         obj.insert("result",result);
     }
+    else if(type == "登录")
+    {
+        obj.insert("isfirstlogin",isFirstLogin);
+        obj.insert("result",result);
+        if(isFirstLogin)
+        {
+            //如果为第一次登录则发送账号资料，头像和好友信息
+
+            //发送头像和好友信息
+            QString fileN1 = m_path + "/" + QString::number(acc) + "/" + QString::number(acc) + ".jpg"; //头像
+            QString fileN2 = m_path + "/" + QString::number(acc) + "/" + "friends.json"; //好友列表
+            qDebug() << "filename1:" << fileN1 << "filename2:" << fileN2;
+
+            //获取图片文件大小
+            QFileInfo info(fileN1);
+            int size1 = info.size();
+
+            //获取好友列表文件大小
+            info.setFile(fileN2);
+            int size2 = info.size();
+
+            //将两个文件的大小加入json数据中
+            obj.insert("headshot_size",size1);
+            obj.insert("friends_size",size2);
+
+            //将待发送的文件名使用?（文件名无法以?命名）隔断传给发送函数
+            sendFileName = fileN1 + "?" + fileN2;
+            qDebug() << "要发送的文件名:" << sendFileName;
+        }
+    }
     QJsonDocument doc(obj);
     QByteArray reply = doc.toJson();
     //将发送数据的大小转换成大端后添加表头
@@ -122,7 +154,7 @@ void WorkThread::ReplyToJson(QString type, QString pwd, QString result,QString f
     QByteArray senddata((char*)&len,4);
     senddata.append(reply);
 
-    SendReply(senddata,fileName);
+    SendReply(senddata,sendFileName);
 }
 
 void WorkThread::SendReply(QByteArray jsondata, QString fileName)
@@ -131,6 +163,32 @@ void WorkThread::SendReply(QByteArray jsondata, QString fileName)
     if(fileName != "")
     {
         qDebug() << "要发送文件";
+        if(isFirstLogin)
+        {
+            qDebug() << "开始读取文件";
+            //拆分开文件名
+            QStringList fileNames = fileName.split("?");
+
+            //获取两个文件的文件名
+            QString fileN1 = fileNames.at(0);
+            QString fileN2 = fileNames.at(1);
+
+            //读取头像文件
+            QFile file(fileN1);
+            file.open(QFile::ReadOnly);
+            QByteArray fileD1 = file.readAll();
+            file.close();
+
+            //读取好友列表文件
+            file.setFileName(fileN2);
+            file.open(QFile::ReadOnly);
+            QByteArray fileD2 = file.readAll();
+            file.close();
+
+            //将两个文件添加入待发送数据中
+            data.append(fileD1);
+            data.append(fileD2);
+        }
     }
     //给所有数据数据添加表头
     int size = qToBigEndian(data.size());
@@ -139,7 +197,7 @@ void WorkThread::SendReply(QByteArray jsondata, QString fileName)
 
     m_tcp->write(alldata);
     m_tcp->flush(); //将数据立刻发出
-    qDebug() << "已发送信息";
+    qDebug() << "已发送信息:" << size;
 }
 
 void WorkThread::recvRegistered(int acc, QString pwd)
@@ -202,25 +260,23 @@ void WorkThread::CltLogin(int acc, QString pwd)
     int result = sql.LoginVerification(acc,pwd);
     if(result == -1) //账号或密码错误
     {
-
+        qDebug() << "账号密码错误";
+        ReplyToJson("登录","","账号密码错误");
         ThreadbackMsg("登录",acc,"账号或密码错误");
     }
     else if(result == 0) //重复登录
     {
-
+        qDebug() << "重复登录";
+        ReplyToJson("登录","","重复登录");
         ThreadbackMsg("登录",acc,"重复登录");
     }
     else //登录成功
     {
+        qDebug() << "登录成功";
+        quint16 port = m_tcp->peerPort(); //传递该套接字端口号给主界面
+        emit UserOnLine(acc,port);
+        sql.UserMessages(acc);
+        ReplyToJson("登录","","登录成功","",acc);
         ThreadbackMsg("登录",acc,"登录成功");
-        emit UserOnLine(acc,m_tcp);
-        if(isFirstLogin)
-        {
-
-        }
-        else
-        {
-
-        }
     }
 }

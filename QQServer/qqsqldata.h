@@ -15,6 +15,7 @@ public:
     bool Deleteaccount(int account); //注销账户
     QString FindPwd(int account); //找回密码
     int LoginVerification(int acc, QString pwd); //登录
+    QString UserMessages(int acc); //返回用户资料
 signals:
 
 private:

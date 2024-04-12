@@ -20,6 +20,8 @@ public:
     explicit MainInterface(QWidget *parent = nullptr);
     ~MainInterface();
     void ShowAccount(bool); //显示注册界面
+public slots:
+    void GetResultFromSer();
 signals:
     void StartConnecting(); //连接服务器
 

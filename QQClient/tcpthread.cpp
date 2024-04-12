@@ -168,6 +168,55 @@ void TcpThread::ParseMsg(QByteArray data,QByteArray filedata)
         QString result = obj.value("result").toString();
         emit sendResultToAccMsg("注册","",result);
     }
+    else if(type == "登录")
+    {
+        qDebug() << "返回登录结果";
+        bool isfirst = obj.value("isfirstlogin").toBool();
+        QString result = obj.value("result").toString();
+        if(result != "登录成功") // 如果不为登录成功则给注册界面发送信号
+        {
+            emit sendResultToLogin(result);
+        }
+        else //不然则为登录成功
+        {
+            qDebug() << "登录成功";
+            if(isfirst) //若为第一次登录
+            {
+                qDebug() << "为第一次登录";
+                int size1 = obj.value("headshot_size").toInt();
+                int size2 = obj.value("friends_size").toInt();
+
+                qDebug() << size1 << ":" << size2;
+
+                int account = obj.value("account").toInt();
+
+                QByteArray fileD1 = filedata.left(size1);
+                QByteArray fileD2 = filedata.right(size2);
+
+                QString acco = QString::number(m_account);
+
+                if(!m_dir.mkdir(m_path + "/" + acco))
+                {
+                    qDebug() << "文件夹创建失败";
+                    return;
+                }
+                qDebug() << "文件夹创建成功，正在写入初始文件: " << m_account;
+                QString fileN1 = m_path + "/" + acco + "/" + acco + ".jpg";
+                QString fileN2 = m_path + "/" + acco + "/" + "friends.json";
+                qDebug() << fileN1 << fileN2;
+                m_file.setFileName(fileN1);
+                m_file.open(QFile::WriteOnly);
+                m_file.write(fileD1);
+                m_file.close();
+
+                m_file.setFileName(fileN2);
+                m_file.open(QFile::WriteOnly);
+                m_file.write(fileD2);
+                m_file.close();
+            }
+            emit sendResultToMainInterFace();
+        }
+    }
 }
 
 void TcpThread::DisconnectFromServer()

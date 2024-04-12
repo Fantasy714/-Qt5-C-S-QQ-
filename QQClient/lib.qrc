@@ -13,7 +13,7 @@
         <file>lib/guanbi2.png</file>
         <file>lib/shangjiantou.png</file>
         <file>lib/xiajiantou.png</file>
-        <file>lib/tishi.png</file>
         <file>lib/gantanhao.png</file>
+        <file>lib/tishi.png</file>
     </qresource>
 </RCC>

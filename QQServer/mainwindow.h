@@ -25,7 +25,7 @@ public:
     void CltDisconnected(); //有客户端断开连接
 public slots:
     void getThreadMsg(QString type,int account,QString msg,int target); //从工作线程中获取客户端的请求内容
-    void UserOnLine(int acc,QTcpSocket * sock); //用户上线则加入在线哈希表中
+    void UserOnLine(int acc,quint16 sockport); //用户上线则加入在线哈希表中
 private:
     Ui::MainWindow *ui;
     Qqsqldata * m_sqldata; //数据库

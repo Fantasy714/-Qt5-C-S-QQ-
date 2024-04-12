@@ -10,6 +10,7 @@
 #include <QDir>
 #include <QFile>
 #include <QLabel>
+#include <QHBoxLayout>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class Login; }
@@ -31,6 +32,9 @@ public:
     void initUserData(); //初始化用户数据
     void initComboBox(); //初始化账户comboBox
     void deleteUserData(QString acc); //删除账号数据
+public slots:
+    void GetResultForSer(QString result); //接收服务器传回的结果
+
 signals:
     void ToAccount(bool); //转到注册界面
     void LoginClose(); //发送关闭信号给tcp线程
@@ -76,6 +80,5 @@ private:
     QStringList m_Pwds; //存放用户密码
     QStringList m_Icons; //存放用户头像位置
     QList<bool> isRemember; //记录是否记住密码
-    QLabel * m_tishi; //提示文字
 };
 #endif // LOGIN_H

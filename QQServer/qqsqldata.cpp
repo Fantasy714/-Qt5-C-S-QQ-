@@ -76,7 +76,7 @@ int Qqsqldata::LoginVerification(int acc, QString pwd)
         return -1;
     }
     QString isonl = result.value("onlinestatus").toString();
-    if(isonl == "离线")
+    if(isonl != "离线")
     {
         qDebug() << "重复登录";
         return 0;
@@ -87,5 +87,22 @@ int Qqsqldata::LoginVerification(int acc, QString pwd)
         qDebug() << "在线状态更新失败";
     }
     return 1;
+}
+
+QString Qqsqldata::UserMessages(int acc)
+{
+    result.exec(QString("select * from qqaccount where account = %1;").arg(acc));
+    if(!result.next())
+    {
+        qDebug() << "查找资料失败";
+    }
+    QString userDatas;
+    QString userD;
+    for(int i = 0; i < 14; i++)
+    {
+        userD = result.value(i).toString();
+        userDatas.append(userD);
+        qDebug() << userD;
+    }
 }
 
