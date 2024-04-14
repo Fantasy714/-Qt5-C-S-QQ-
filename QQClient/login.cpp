@@ -32,6 +32,12 @@ Login::Login(QWidget *parent)
     ui->PwdLine->setValidator(new QRegExpValidator(QRegExp("[a-zA-z0-9]+$")));
     //密码PwdLineEdit输入时显示密码文
     ui->PwdLine->setEchoMode(QLineEdit::Password);
+
+    //设置账号密码栏通过鼠标单击和tab键获取焦点
+    ui->AccountLine->setFocus();
+    ui->AccountLine->setFocusPolicy(Qt::StrongFocus);
+    ui->PwdLine->setFocusPolicy(Qt::StrongFocus);
+
     //添加文本框图标
     QAction * AcAction = new QAction(ui->AccountLine);
     AcAction->setIcon(QIcon(":/lib/Accont.png"));
@@ -250,6 +256,7 @@ void Login::initComboBox()
 {
     //加载自定义的下拉列表框
     QListWidget * lwidget = new QListWidget(this);
+    lwidget->setFocusPolicy(Qt::NoFocus);
     ui->comboBox->setModel(lwidget->model());
     ui->comboBox->setView(lwidget);
 
@@ -335,7 +342,7 @@ void Login::deleteUserData(QString acc)
 
 }
 
-void Login::GetResultForSer(QString result)
+void Login::GetResultFromSer(QString result)
 {
     if(result == "账号密码错误")
     {
@@ -347,7 +354,7 @@ void Login::GetResultForSer(QString result)
         qDebug() << "重复登录";
         if(ui->TipsWidget->isHidden())
         {
-            qDebug() << "changing text";
+            qDebug() << "changing tips text";
             ui->tipsLabel->setText("你已在QQ登录了" + ui->AccountLine->text() + "，不能重复登录。");
             ui->TipsWidget->show();
             QTimer::singleShot(5000,ui->TipsWidget,SLOT(hide()));
@@ -396,7 +403,7 @@ void Login::on_pushButton_clicked()
     {
         isFirstLogin = true;
     }
-    emit LoginToServer(isFirstLogin,acc.toInt(),pwd);
+    emit LoginToServer(isFirstLogin,acc.toInt(),pwd,ui->RememberCheck->isChecked());
 }
 
 //选择ComboBox时改变账号头像等信息

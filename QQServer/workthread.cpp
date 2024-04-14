@@ -121,30 +121,43 @@ void WorkThread::ReplyToJson(QString type, QString pwd, QString result,QString f
     {
         obj.insert("isfirstlogin",isFirstLogin);
         obj.insert("result",result);
-        if(isFirstLogin)
+        if(result == "登录成功")
         {
-            //如果为第一次登录则发送账号资料，头像和好友信息
+            if(isFirstLogin)
+            {
+                //如果为第一次登录则发送账号资料，头像和好友信息
+                obj.insert("account",m_userDatas.at(0));
+                obj.insert("nickname",m_userDatas.at(3));
+                obj.insert("signature",m_userDatas.at(4));
+                obj.insert("sex",m_userDatas.at(5));
+                obj.insert("age",m_userDatas.at(6));
+                obj.insert("birthday",m_userDatas.at(7));
+                obj.insert("location",m_userDatas.at(8));
+                obj.insert("blood_type",m_userDatas.at(9));
+                obj.insert("work",m_userDatas.at(10));
+                obj.insert("sch_comp",m_userDatas.at(11));
 
-            //发送头像和好友信息
-            QString fileN1 = m_path + "/" + QString::number(acc) + "/" + QString::number(acc) + ".jpg"; //头像
-            QString fileN2 = m_path + "/" + QString::number(acc) + "/" + "friends.json"; //好友列表
-            qDebug() << "filename1:" << fileN1 << "filename2:" << fileN2;
+                //发送头像和好友信息
+                QString fileN1 = m_path + "/" + QString::number(acc) + "/" + QString::number(acc) + ".jpg"; //头像
+                QString fileN2 = m_path + "/" + QString::number(acc) + "/" + "friends.json"; //好友列表
+                qDebug() << "filename1:" << fileN1 << "filename2:" << fileN2;
 
-            //获取图片文件大小
-            QFileInfo info(fileN1);
-            int size1 = info.size();
+                //获取图片文件大小
+                QFileInfo info(fileN1);
+                int size1 = info.size();
 
-            //获取好友列表文件大小
-            info.setFile(fileN2);
-            int size2 = info.size();
+                //获取好友列表文件大小
+                info.setFile(fileN2);
+                int size2 = info.size();
 
-            //将两个文件的大小加入json数据中
-            obj.insert("headshot_size",size1);
-            obj.insert("friends_size",size2);
+                //将两个文件的大小加入json数据中
+                obj.insert("headshot_size",size1);
+                obj.insert("friends_size",size2);
 
-            //将待发送的文件名使用?（文件名无法以?命名）隔断传给发送函数
-            sendFileName = fileN1 + "?" + fileN2;
-            qDebug() << "要发送的文件名:" << sendFileName;
+                //将待发送的文件名使用?（文件名无法以?命名）隔断传给发送函数
+                sendFileName = fileN1 + "?" + fileN2;
+                qDebug() << "要发送的文件名:" << sendFileName;
+            }
         }
     }
     QJsonDocument doc(obj);
@@ -275,7 +288,15 @@ void WorkThread::CltLogin(int acc, QString pwd)
         qDebug() << "登录成功";
         quint16 port = m_tcp->peerPort(); //传递该套接字端口号给主界面
         emit UserOnLine(acc,port);
-        sql.UserMessages(acc);
+        if(isFirstLogin)
+        {
+            m_userDatas = sql.UserMessages(acc);
+            if(m_userDatas.isEmpty())
+            {
+                qDebug() << "错误，用户资料为空";
+                return;
+            }
+        }
         ReplyToJson("登录","","登录成功","",acc);
         ThreadbackMsg("登录",acc,"登录成功");
     }

@@ -27,8 +27,7 @@ bool Qqsqldata::connectToSql()
 
 QString Qqsqldata::Addaccount(int account, QString pwd)
 {
-    QString picname = QString::number(account) + ".jpg";
-    bool success = result.exec(QString("insert into qqaccount(account,pwd,headshot) value(%1,'%2','%3');").arg(account).arg(pwd).arg(picname));
+    bool success = result.exec(QString("insert into qqaccount(account,pwd) value(%1,'%2');").arg(account).arg(pwd));
     if(success)
     {
         //设置随机数种子
@@ -89,20 +88,22 @@ int Qqsqldata::LoginVerification(int acc, QString pwd)
     return 1;
 }
 
-QString Qqsqldata::UserMessages(int acc)
+QStringList Qqsqldata::UserMessages(int acc)
 {
+    QStringList userDatas;
     result.exec(QString("select * from qqaccount where account = %1;").arg(acc));
     if(!result.next())
     {
         qDebug() << "查找资料失败";
+        return userDatas;
     }
-    QString userDatas;
     QString userD;
-    for(int i = 0; i < 14; i++)
+    for(int i = 0; i < 12; i++)
     {
         userD = result.value(i).toString();
         userDatas.append(userD);
         qDebug() << userD;
     }
+    return userDatas;
 }
 

@@ -107,7 +107,7 @@ void Account::recvResultFromTcp(QString type, QString pwd, QString result)
         }
         else
         {
-            QMessageBox::warning(this,"注册失败","您的账号注册失败!");
+            QMessageBox::warning(this,"注册失败","注册失败！该账号已存在，请重新输入新的账号或点击找回密码。");
         }
         ui->pushButton->setEnabled(true);
         ui->pushButton->setStyleSheet("font-size:15px;color:white;border-style:none;border-radius:8px 8px;background-color:rgb(0, 170, 255);");

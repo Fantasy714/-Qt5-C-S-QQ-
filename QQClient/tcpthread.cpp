@@ -48,12 +48,13 @@ void TcpThread::GetClose()
     qDebug() << "线程已退出";
 }
 
-void TcpThread::LoginToServer(bool isfirst, int acc, QString pwd)
+void TcpThread::LoginToServer(bool isfirst, int acc, QString pwd,bool isChecked)
 {
     m_type = "登录";
     isFirstLogin = isfirst;
     m_account = acc;
     m_pwd = pwd;
+    isRemember = isChecked;
     MsgToJson();
 }
 
@@ -180,38 +181,119 @@ void TcpThread::ParseMsg(QByteArray data,QByteArray filedata)
         else //不然则为登录成功
         {
             qDebug() << "登录成功";
+            m_file.setFileName(m_path + "/" + QString::number(m_account) + "/login.txt");
+            if(!m_file.open(QFile::ReadWrite))
+            {
+                qDebug() << "文件不存在，等待文件初始化";
+            }
+            else //若打开成功则文件存在
+            {
+                QString loginD = m_file.readLine();
+                m_file.close();
+                QStringList loginDs = loginD.split(",");
+                /*
+                 * login.txt文件格式
+                 * 用户昵称,头像图片文件名称,是否记住密码,若记住则为密码，否则为空
+                 */
+                //若文件中记录为记住则为真，否则为假
+                bool fileRem = loginDs.at(2) == "记住" ? true : false;
+                //若文件中记录与当前选择不相同才更改文件
+                if(fileRem != isRemember)
+                {
+                    qDebug() << "正在更改配置文件" << "记住按钮选中状态" << isRemember;
+                    QByteArray writeDatas;
+                    QString loginData;
+                    //昵称和头像名称不改变，只改变后两位是否记住和密码
+                    if(isRemember)
+                    {
+                        loginData = loginDs.at(0) + "," + loginDs.at(1) + "," + "记住," + m_pwd;
+                        qDebug() << m_pwd;
+                    }
+                    else
+                    {
+                        loginData = loginDs.at(0) + "," + loginDs.at(1) + "," + "不记住";
+                    }
+                    m_file.open(QFile::WriteOnly | QFile::Truncate);
+                    writeDatas = loginData.toUtf8();
+                    m_file.write(writeDatas);
+                    m_file.close();
+                }
+            }
             if(isfirst) //若为第一次登录
             {
                 qDebug() << "为第一次登录";
+
+                //接收用户个人资料
+                QString mynickname = obj.value("nickname").toString();
+
+                QJsonObject myobj;
+                myobj.insert("account",obj.value("account").toString().toInt());
+                myobj.insert("nickname",mynickname);
+                myobj.insert("signature",obj.value("signature").toString());
+                myobj.insert("sex",obj.value("sex").toString());
+                myobj.insert("age",obj.value("age").toString().toInt());
+                myobj.insert("birthday",obj.value("birthday").toString());
+                myobj.insert("location",obj.value("location").toString());
+                myobj.insert("blood_type",obj.value("blood_type").toString());
+                myobj.insert("work",obj.value("work").toString());
+                myobj.insert("sch_comp",obj.value("sch_comp").toString());
+
+                QString accountS = QString::number(m_account);
+                //创建用户数据文件夹
+                if(!m_dir.mkdir(m_path + "/" + accountS))
+                {
+                    qDebug() << "文件夹创建失败";
+                    return;
+                }
+                qDebug() << "文件夹创建成功，正在写入初始文件: " << accountS;
+                //将用户资料保存到本地
+                QJsonDocument mydoc(myobj);
+                QByteArray ToJsonFile = mydoc.toJson();
+                m_file.setFileName(m_path + "/" + accountS + "/info.json");
+                m_file.open(QFile::WriteOnly);
+                m_file.write(ToJsonFile);
+                m_file.close();
+
+                //接收文件大小
                 int size1 = obj.value("headshot_size").toInt();
                 int size2 = obj.value("friends_size").toInt();
 
                 qDebug() << size1 << ":" << size2;
 
-                int account = obj.value("account").toInt();
-
+                //读取文件
                 QByteArray fileD1 = filedata.left(size1);
                 QByteArray fileD2 = filedata.right(size2);
 
-                QString acco = QString::number(m_account);
-
-                if(!m_dir.mkdir(m_path + "/" + acco))
-                {
-                    qDebug() << "文件夹创建失败";
-                    return;
-                }
-                qDebug() << "文件夹创建成功，正在写入初始文件: " << m_account;
-                QString fileN1 = m_path + "/" + acco + "/" + acco + ".jpg";
-                QString fileN2 = m_path + "/" + acco + "/" + "friends.json";
-                qDebug() << fileN1 << fileN2;
+                QString fileN1 = m_path + "/" + accountS + "/" + accountS + ".jpg";
+                QString fileN2 = m_path + "/" + accountS + "/friends.json";
+                qDebug() << "头像名:" << fileN1 << "好友列表文件:" << fileN2;
+                //创建用户头像
                 m_file.setFileName(fileN1);
                 m_file.open(QFile::WriteOnly);
                 m_file.write(fileD1);
                 m_file.close();
 
+                //创建用户好友列表
                 m_file.setFileName(fileN2);
                 m_file.open(QFile::WriteOnly);
                 m_file.write(fileD2);
+                m_file.close();
+
+                //创建登录界面初始化文件
+                m_file.setFileName(m_path + "/" + accountS + "/login.txt");
+                m_file.open(QFile::WriteOnly);
+                QString msg = mynickname + "," + accountS + ".jpg,";
+                //若isRemember为真则是记住密码
+                if(isRemember)
+                {
+                    msg += "记住,";
+                    msg += m_pwd;
+                }
+                else
+                {
+                    msg.append("不记住");
+                }
+                m_file.write(msg.toUtf8());
                 m_file.close();
             }
             emit sendResultToMainInterFace();

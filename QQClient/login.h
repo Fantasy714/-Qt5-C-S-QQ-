@@ -33,12 +33,12 @@ public:
     void initComboBox(); //初始化账户comboBox
     void deleteUserData(QString acc); //删除账号数据
 public slots:
-    void GetResultForSer(QString result); //接收服务器传回的结果
+    void GetResultFromSer(QString result); //接收服务器传回的结果
 
 signals:
     void ToAccount(bool); //转到注册界面
     void LoginClose(); //发送关闭信号给tcp线程
-    void LoginToServer(bool isfirst,int acc,QString pwd); //登录
+    void LoginToServer(bool isfirst,int acc,QString pwd,bool isRem); //登录
 
 private slots:
     void on_activatedSysTrayIcon(QSystemTrayIcon::ActivationReason reason); //点击托盘图标

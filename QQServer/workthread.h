@@ -32,6 +32,7 @@ private:
     QString m_path = QCoreApplication::applicationDirPath() + "/usersdata"; //用户数据文件夹位置
     QDir m_dir; //操作文件目录
     bool isFirstLogin = false; //是否是第一次登录
+    QStringList m_userDatas; //保存用户资料
 };
 
 #endif // WORKTHREAD_H

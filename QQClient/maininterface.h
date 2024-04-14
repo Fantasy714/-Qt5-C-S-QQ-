@@ -1,7 +1,7 @@
 #ifndef MAININTERFACE_H
 #define MAININTERFACE_H
 
-#include <QWidget>
+#include <QMainWindow>
 #include "login.h"
 #include "account.h"
 #include "tcpthread.h"
@@ -12,7 +12,7 @@ namespace Ui {
 class MainInterface;
 }
 
-class MainInterface : public QWidget
+class MainInterface : public QMainWindow
 {
     Q_OBJECT
 
@@ -24,7 +24,6 @@ public slots:
     void GetResultFromSer();
 signals:
     void StartConnecting(); //连接服务器
-
 private:
     Ui::MainInterface *ui;
     Login * m_log; //登录界面

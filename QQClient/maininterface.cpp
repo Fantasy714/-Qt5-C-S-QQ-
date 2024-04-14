@@ -5,7 +5,7 @@
 #include <QFileInfo>
 
 MainInterface::MainInterface(QWidget *parent) :
-    QWidget(parent),
+    QMainWindow(parent),
     ui(new Ui::MainInterface)
 {
     ui->setupUi(this);
@@ -21,6 +21,14 @@ MainInterface::MainInterface(QWidget *parent) :
         }
     }
 
+    //设置无边框窗口
+    setWindowFlags(Qt::FramelessWindowHint);
+    //测试
+
+    this->show();
+    //测试
+
+    /*
     //初始化登录界面
     m_log = new Login(this);
     connect(m_log,&Login::ToAccount,this,&MainInterface::ShowAccount);
@@ -32,7 +40,7 @@ MainInterface::MainInterface(QWidget *parent) :
     connect(m_mytcp,&TcpThread::isConnectingWithServer,m_log,&Login::isConnectingWithServer);
     connect(m_log,&Login::LoginClose,m_mytcp,&TcpThread::GetClose);
     connect(m_log,&Login::LoginToServer,m_mytcp,&TcpThread::LoginToServer);
-    connect(m_mytcp,&TcpThread::sendResultToLogin,m_log,&Login::GetResultForSer);
+    connect(m_mytcp,&TcpThread::sendResultToLogin,m_log,&Login::GetResultFromSer);
     connect(m_mytcp,&TcpThread::sendResultToMainInterFace,this,&MainInterface::GetResultFromSer);
     m_mytcp->moveToThread(thread);
 
@@ -41,6 +49,7 @@ MainInterface::MainInterface(QWidget *parent) :
     thread->start();
     emit StartConnecting();
     //qDebug() << "主界面的线程ID为:" << QThread::currentThreadId();
+    */
 }
 
 MainInterface::~MainInterface()
@@ -69,3 +78,4 @@ void MainInterface::GetResultFromSer()
     m_log->hide();
     this->show();
 }
+

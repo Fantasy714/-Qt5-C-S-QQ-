@@ -25,7 +25,7 @@ public:
 public slots:
     void StartConnect(); //开始连接,连接失败则自动重连
     void GetClose(); //接收关闭信号
-    void LoginToServer(bool isfirst,int acc,QString pwd); //登录
+    void LoginToServer(bool isfirst,int acc,QString pwd,bool isChecked); //登录
 signals:
     void sendResultToAccMsg(QString type,QString pwd,QString result); //发送结果回注册界面
     void sendResultToLogin(QString result); //发送结果回登录界面
@@ -45,6 +45,7 @@ private:
     QString m_path = QCoreApplication::applicationDirPath() + "/userdata"; //用户数据文件夹位置
     QDir m_dir; //操作文件夹
     QFile m_file; //操作文件
+    bool isRemember; //是否记住密码
 };
 
 #endif // TCPTHREAD_H

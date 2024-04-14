@@ -15,5 +15,9 @@
         <file>lib/xiajiantou.png</file>
         <file>lib/gantanhao.png</file>
         <file>lib/tishi.png</file>
+        <file>lib/add.png</file>
+        <file>lib/MainMenu.png</file>
+        <file>lib/quit.png</file>
+        <file>lib/addfriend.png</file>
     </qresource>
 </RCC>
