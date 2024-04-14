@@ -29,7 +29,7 @@ public slots:
 signals:
     void sendResultToAccMsg(QString type,QString pwd,QString result); //发送结果回注册界面
     void sendResultToLogin(QString result); //发送结果回登录界面
-    void sendResultToMainInterFace(); //发送结果回登录界面
+    void sendResultToMainInterFace(int acc,QString nickname,QString signature); //发送结果回登录界面
     void isConnectingWithServer(bool onl); //连接成功时发出true,服务器断开连接发送false
 private:
     QTcpSocket * m_tcp = nullptr; //tcp套接字

@@ -70,7 +70,14 @@ void MainWindow::CltDisconnected()
 {
     QTcpSocket * sock = (QTcpSocket*)sender();
     QString str = "客户端断开连接，断开连接的客户端端口号为: " + QString::number(sock->peerPort());
-    qDebug() << str;
+    //若已登陆则将在线状态恢复为离线并从在线哈希表中删除
+    int acc = m_onlines.key(sock);
+    if(acc != 0)
+    {
+        m_onlines.remove(acc);
+        m_sqldata->ChangeOnlineSta(acc,"离线");
+        str += ", 该客户端账号为: " + QString::number(acc);
+    }
     ui->PlainTextEdit->appendPlainText(str);
     m_sockets.removeOne(sock);
     sock->close();

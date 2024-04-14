@@ -124,7 +124,6 @@ void Login::on_CloseToolBtn_clicked()
 void Login::on_MiniToolBtn_clicked()
 {
     this->hide();
-    m_sysIcon->show();
 }
 
 void Login::on_activatedSysTrayIcon(QSystemTrayIcon::ActivationReason reason)
@@ -340,6 +339,11 @@ void Login::initComboBox()
 void Login::deleteUserData(QString acc)
 {
 
+}
+
+void Login::closeSystemIcon()
+{
+    m_sysIcon->hide();
 }
 
 void Login::GetResultFromSer(QString result)

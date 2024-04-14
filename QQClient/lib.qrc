@@ -19,5 +19,8 @@
         <file>lib/MainMenu.png</file>
         <file>lib/quit.png</file>
         <file>lib/addfriend.png</file>
+        <file>lib/close.png</file>
+        <file>lib/search.png</file>
+        <file>lib/QQ.png</file>
     </qresource>
 </RCC>

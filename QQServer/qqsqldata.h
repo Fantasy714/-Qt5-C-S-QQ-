@@ -16,6 +16,7 @@ public:
     QString FindPwd(int account); //找回密码
     int LoginVerification(int acc, QString pwd); //登录
     QStringList UserMessages(int acc); //返回用户资料
+    bool ChangeOnlineSta(int acc,QString sta); //更改在线状态
 signals:
 
 private:

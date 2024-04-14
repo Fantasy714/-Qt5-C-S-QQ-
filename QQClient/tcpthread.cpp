@@ -181,6 +181,8 @@ void TcpThread::ParseMsg(QByteArray data,QByteArray filedata)
         else //不然则为登录成功
         {
             qDebug() << "登录成功";
+            QString signature = obj.value("signature").toString(); //获取用户个性签名
+            QString nickname;
             m_file.setFileName(m_path + "/" + QString::number(m_account) + "/login.txt");
             if(!m_file.open(QFile::ReadWrite))
             {
@@ -195,6 +197,7 @@ void TcpThread::ParseMsg(QByteArray data,QByteArray filedata)
                  * login.txt文件格式
                  * 用户昵称,头像图片文件名称,是否记住密码,若记住则为密码，否则为空
                  */
+                nickname = loginDs.at(0); //获取用户昵称
                 //若文件中记录为记住则为真，否则为假
                 bool fileRem = loginDs.at(2) == "记住" ? true : false;
                 //若文件中记录与当前选择不相同才更改文件
@@ -223,20 +226,9 @@ void TcpThread::ParseMsg(QByteArray data,QByteArray filedata)
             {
                 qDebug() << "为第一次登录";
 
-                //接收用户个人资料
+                //接收用户昵称
                 QString mynickname = obj.value("nickname").toString();
-
-                QJsonObject myobj;
-                myobj.insert("account",obj.value("account").toString().toInt());
-                myobj.insert("nickname",mynickname);
-                myobj.insert("signature",obj.value("signature").toString());
-                myobj.insert("sex",obj.value("sex").toString());
-                myobj.insert("age",obj.value("age").toString().toInt());
-                myobj.insert("birthday",obj.value("birthday").toString());
-                myobj.insert("location",obj.value("location").toString());
-                myobj.insert("blood_type",obj.value("blood_type").toString());
-                myobj.insert("work",obj.value("work").toString());
-                myobj.insert("sch_comp",obj.value("sch_comp").toString());
+                nickname = mynickname;
 
                 QString accountS = QString::number(m_account);
                 //创建用户数据文件夹
@@ -246,13 +238,6 @@ void TcpThread::ParseMsg(QByteArray data,QByteArray filedata)
                     return;
                 }
                 qDebug() << "文件夹创建成功，正在写入初始文件: " << accountS;
-                //将用户资料保存到本地
-                QJsonDocument mydoc(myobj);
-                QByteArray ToJsonFile = mydoc.toJson();
-                m_file.setFileName(m_path + "/" + accountS + "/info.json");
-                m_file.open(QFile::WriteOnly);
-                m_file.write(ToJsonFile);
-                m_file.close();
 
                 //接收文件大小
                 int size1 = obj.value("headshot_size").toInt();
@@ -296,7 +281,7 @@ void TcpThread::ParseMsg(QByteArray data,QByteArray filedata)
                 m_file.write(msg.toUtf8());
                 m_file.close();
             }
-            emit sendResultToMainInterFace();
+            emit sendResultToMainInterFace(m_account,nickname,signature);
         }
     }
 }

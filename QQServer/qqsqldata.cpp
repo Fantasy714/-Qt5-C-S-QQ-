@@ -91,19 +91,30 @@ int Qqsqldata::LoginVerification(int acc, QString pwd)
 QStringList Qqsqldata::UserMessages(int acc)
 {
     QStringList userDatas;
-    result.exec(QString("select * from qqaccount where account = %1;").arg(acc));
+    result.exec(QString("select nickname,signature,sex,age,birthday,location,blood_type,work,sch_comp from qqaccount where account = %1;").arg(acc));
     if(!result.next())
     {
         qDebug() << "查找资料失败";
         return userDatas;
     }
     QString userD;
-    for(int i = 0; i < 12; i++)
+    qDebug() << result.size();
+    for(int i = 0; i < 9; i++)
     {
         userD = result.value(i).toString();
         userDatas.append(userD);
-        qDebug() << userD;
+        //qDebug() << userD;
     }
     return userDatas;
+}
+
+bool Qqsqldata::ChangeOnlineSta(int acc,QString sta)
+{
+    bool suc = result.exec(QString("update qqaccount set onlinestatus = '%1' where account = %2;").arg(sta).arg(acc));
+    if(!suc)
+    {
+        qDebug() << "在线状态更新失败";
+    }
+    return suc;
 }
 

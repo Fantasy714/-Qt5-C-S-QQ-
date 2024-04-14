@@ -123,19 +123,11 @@ void WorkThread::ReplyToJson(QString type, QString pwd, QString result,QString f
         obj.insert("result",result);
         if(result == "登录成功")
         {
+            obj.insert("signature",m_userDatas.at(1));
             if(isFirstLogin)
             {
-                //如果为第一次登录则发送账号资料，头像和好友信息
-                obj.insert("account",m_userDatas.at(0));
-                obj.insert("nickname",m_userDatas.at(3));
-                obj.insert("signature",m_userDatas.at(4));
-                obj.insert("sex",m_userDatas.at(5));
-                obj.insert("age",m_userDatas.at(6));
-                obj.insert("birthday",m_userDatas.at(7));
-                obj.insert("location",m_userDatas.at(8));
-                obj.insert("blood_type",m_userDatas.at(9));
-                obj.insert("work",m_userDatas.at(10));
-                obj.insert("sch_comp",m_userDatas.at(11));
+                //如果为第一次登录则发送账号昵称，头像和好友信息
+                obj.insert("nickname",m_userDatas.at(0));
 
                 //发送头像和好友信息
                 QString fileN1 = m_path + "/" + QString::number(acc) + "/" + QString::number(acc) + ".jpg"; //头像
@@ -236,6 +228,25 @@ void WorkThread::recvRegistered(int acc, QString pwd)
         QString pathJ = path + "/friends.json";
         QFile file(pathJ);
         file.open(QFile::WriteOnly);
+
+        //创建默认好友分组
+        QJsonArray jsarr;
+        QJsonObject obj1;
+        obj1.insert("name0","我的好友");
+        QJsonObject obj2;
+        obj2.insert("name1","朋友");
+        QJsonObject obj3;
+        obj3.insert("name2","家人");
+        QJsonObject obj4;
+        obj4.insert("name3","同学");
+        jsarr.append(obj1);
+        jsarr.append(obj2);
+        jsarr.append(obj3);
+        jsarr.append(obj4);
+
+        QJsonDocument doc(jsarr);
+        file.write(doc.toJson());
+
         file.close();
         //读取服务器随机分配的头像图片
         file.setFileName(iconName);
@@ -287,16 +298,8 @@ void WorkThread::CltLogin(int acc, QString pwd)
     {
         qDebug() << "登录成功";
         quint16 port = m_tcp->peerPort(); //传递该套接字端口号给主界面
+        m_userDatas = sql.UserMessages(acc); //获取用户昵称和个性签名
         emit UserOnLine(acc,port);
-        if(isFirstLogin)
-        {
-            m_userDatas = sql.UserMessages(acc);
-            if(m_userDatas.isEmpty())
-            {
-                qDebug() << "错误，用户资料为空";
-                return;
-            }
-        }
         ReplyToJson("登录","","登录成功","",acc);
         ThreadbackMsg("登录",acc,"登录成功");
     }
