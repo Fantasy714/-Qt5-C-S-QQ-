@@ -6,7 +6,6 @@
 #include <QReadWriteLock>
 #include <QTcpSocket>
 #include "qqsqldata.h"
-#include <QJsonDocument>
 #include <QCoreApplication>
 #include <QDir>
 

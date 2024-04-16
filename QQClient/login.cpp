@@ -9,6 +9,7 @@
 #include <QRegion>
 #include <QMessageBox>
 #include <QTimer>
+#include <QPainter>
 
 Login::Login(QWidget *parent)
     : QWidget(parent)
@@ -46,8 +47,6 @@ Login::Login(QWidget *parent)
     QAction * PwdAction = new QAction(ui->PwdLine);
     PwdAction->setIcon(QIcon(":/lib/pwd.png"));
     ui->PwdLine->addAction(PwdAction,QLineEdit::LeadingPosition);
-    //设置头像为圆形
-    ui->label->setMask(QRegion(ui->label->rect(),QRegion::RegionType::Ellipse));
     //初始化系统托盘
     InitSysTrayicon();
 
@@ -124,7 +123,6 @@ void Login::on_CloseToolBtn_clicked()
 void Login::on_MiniToolBtn_clicked()
 {
     this->hide();
-    m_sysIcon->show();
 }
 
 void Login::on_activatedSysTrayIcon(QSystemTrayIcon::ActivationReason reason)
@@ -214,6 +212,12 @@ void Login::initUserData()
     QStringList dirNames = m_dir.entryList(QDir::Dirs);
     dirNames.removeOne(".");
     dirNames.removeOne("..");
+    dirNames.removeOne("allusers");
+    if(dirNames.isEmpty())
+    {
+        QPixmap pix = CreatePixmap(":/lib/default.jpg");
+        ui->label->setPixmap(pix);
+    }
     for(auto dirName : dirNames)
     {
         //qDebug() << dirName;
@@ -222,13 +226,13 @@ void Login::initUserData()
         qDebug() << m_file.fileName() << m_file.exists();
         if(!m_file.open(QFile::ReadOnly))
         {
-            qDebug() << "打开文件失败";
+            qDebug() << "打开用户login文件失败";
         }
         QByteArray data = m_file.readLine();
         m_file.close();
         QString userMsg = QString(data);
         //逗号拆分用户登录信息
-        QStringList Msgs = userMsg.split(",");
+        QStringList Msgs = userMsg.split("@@");
         /* |***测试***| 查看添加了哪些数据
         for(auto msg : Msgs)
         {
@@ -269,9 +273,9 @@ void Login::initComboBox()
 
         //设置头像
         QLabel * label1 = new QLabel;
-        label1->setPixmap(QPixmap(m_Icons.at(i)));
+        QPixmap pix = CreatePixmap(m_Icons.at(i));
+        label1->setPixmap(pix);
         label1->setFixedSize(40,40);
-        label1->setMask(QRegion(label1->rect(),QRegion::Ellipse));
         label1->setScaledContents(true);
 
         //设置用户名和账号
@@ -320,7 +324,8 @@ void Login::initComboBox()
                //如果将账号全部删除则设置为初始状态
                if(m_dataLoc.length() == 0)
                {
-                   ui->label->setPixmap(QPixmap(":/lib/default.jpg"));
+                   QPixmap pix = CreatePixmap(":/lib/default.jpg");
+                   ui->label->setPixmap(pix);
                    ui->AccountLine->setText("");
                    ui->PwdLine->setText("");
                    ui->RememberCheck->setChecked(false);
@@ -340,6 +345,36 @@ void Login::initComboBox()
 void Login::deleteUserData(QString acc)
 {
 
+}
+
+void Login::closeSystemIcon()
+{
+    m_sysIcon->hide();
+}
+
+QPixmap Login::CreatePixmap(QString picPath)
+{
+    QPixmap src(picPath);
+    QPixmap pix(src.width(),src.height());
+
+    //设置图片透明
+    pix.fill(Qt::transparent);
+
+    QPainter painter(&pix);
+    //设置图片边缘抗锯齿，指示引擎应使用平滑像素图变换算法绘制图片
+    painter.setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
+
+    QPainterPath path;
+    //设置圆形半径，取图片较小边长作为裁切半径
+    int radius = src.width() > src.height() ? src.height()/2 : src.width()/2;
+    //绘制裁切区域的大小
+    path.addEllipse(src.rect().center(),radius,radius);
+    //设置裁切区域
+    painter.setClipPath(path);
+    //把源图片的内容绘制到创建的pixmap上，非裁切区域内容不显示
+    painter.drawPixmap(pix.rect(),src);
+
+    return pix;
 }
 
 void Login::GetResultFromSer(QString result)
@@ -412,7 +447,8 @@ void Login::on_comboBox_currentIndexChanged(int index)
     if(index >= 0)
     {
         //qDebug() << index;
-        ui->label->setPixmap(QPixmap(m_Icons.at(index)));
+        QPixmap pix = CreatePixmap(m_Icons.at(index));
+        ui->label->setPixmap(pix);
         ui->AccountLine->setText(m_Accs.at(index));
         ui->PwdLine->setText(m_Pwds.at(index));
         ui->RememberCheck->setChecked(isRemember.at(index));
@@ -429,13 +465,16 @@ void Login::on_pushButton_2_clicked()
 void Login::on_AccountLine_textChanged(const QString &arg1)
 {
     //qDebug() << arg1;
+    //若用户本地数据中有该账号信息则显示该账号头像，否则显示默认头像
     int loc = m_Accs.indexOf(arg1);
     if(loc == -1)
     {
-        ui->label->setPixmap(QPixmap(":/lib/default.jpg"));
+        QPixmap pix = CreatePixmap(":/lib/default.jpg");
+        ui->label->setPixmap(pix);
     }
     else
     {
-        ui->label->setPixmap(QPixmap(m_Icons.at(loc)));
+        QPixmap pix = CreatePixmap(m_Icons.at(loc));
+        ui->label->setPixmap(pix);
     }
 }

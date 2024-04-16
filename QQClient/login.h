@@ -32,6 +32,8 @@ public:
     void initUserData(); //初始化用户数据
     void initComboBox(); //初始化账户comboBox
     void deleteUserData(QString acc); //删除账号数据
+    void closeSystemIcon(); //关闭托盘
+    QPixmap CreatePixmap(QString picPath); //返回圆形头像
 public slots:
     void GetResultFromSer(QString result); //接收服务器传回的结果
 

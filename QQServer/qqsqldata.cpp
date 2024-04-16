@@ -30,6 +30,8 @@ QString Qqsqldata::Addaccount(int account, QString pwd)
     bool success = result.exec(QString("insert into qqaccount(account,pwd) value(%1,'%2');").arg(account).arg(pwd));
     if(success)
     {
+        //成功则创建数据库好友列表
+        CreateFriends(account);
         //设置随机数种子
         qsrand(QTime(0,0,0).secsTo(QTime::currentTime()));
         int photoId = rand() % 7 + 1; //随机分配一个默认头像编号
@@ -91,19 +93,92 @@ int Qqsqldata::LoginVerification(int acc, QString pwd)
 QStringList Qqsqldata::UserMessages(int acc)
 {
     QStringList userDatas;
-    result.exec(QString("select * from qqaccount where account = %1;").arg(acc));
+    result.exec(QString("select nickname,signature,sex,age,birthday,location,blood_type,work,sch_comp from qqaccount where account = %1;").arg(acc));
     if(!result.next())
     {
         qDebug() << "查找资料失败";
         return userDatas;
     }
     QString userD;
-    for(int i = 0; i < 12; i++)
+    qDebug() << result.size();
+    for(int i = 0; i < 9; i++)
     {
         userD = result.value(i).toString();
         userDatas.append(userD);
-        qDebug() << userD;
+        //qDebug() << userD;
     }
     return userDatas;
+}
+
+bool Qqsqldata::ChangeOnlineSta(int acc,QString sta)
+{
+    bool suc = result.exec(QString("update qqaccount set onlinestatus = '%1' where account = %2;").arg(sta).arg(acc));
+    if(!suc)
+    {
+        qDebug() << "在线状态更新失败";
+    }
+    return suc;
+}
+
+bool Qqsqldata::CreateFriends(int acc)
+{
+    bool res = result.exec(QString("insert into qqfriends(account,friends)value(%1,'')").arg(acc));
+    if(!res)
+    {
+        qDebug() << "创建数据库好友列表失败";
+    }
+    return res;
+}
+
+bool Qqsqldata::AddFriend(int acc1, int acc2)
+{
+    //更新第一个用户的好友列表
+    result.exec(QString("select friends from qqfriends where account = %1;").arg(acc1));
+    if(!result.next())
+    {
+        qDebug() << "acc1查找好友失败!";
+        return false;
+    }
+    QString fris1 = result.value("friends").toString();
+    fris1 += QString::number(acc2) + ",";
+    bool res = result.exec(QString("update qqfriends set friends = '%1' where account = %2;").arg(fris1).arg(acc1));
+    if(res == false)
+    {
+        qDebug() << "更改好友列表失败";
+        return false;
+    }
+
+    //更新第二个用户的好友列表
+    result.exec(QString("select friends from qqfriends where account = %1;").arg(acc2));
+    if(!result.next())
+    {
+        qDebug() << "acc1查找好友失败!";
+        return false;
+    }
+    QString fris2 = result.value("friends").toString();
+    fris2 += QString::number(acc1) + ",";
+    res = result.exec(QString("update qqfriends set friends = '%1' where account = %2;").arg(fris2).arg(acc2));
+    if(res == false)
+    {
+        qDebug() << "更改好友列表失败";
+        return false;
+    }
+}
+
+QVector<int> Qqsqldata::ReturnFris(int acc)
+{
+    result.exec(QString("select friends from qqfriends where account = %1;").arg(acc));
+    if(!result.next())
+    {
+        qDebug() << "查找好友失败";
+    }
+    QStringList frislist = result.value("friends").toString().split(",");
+    QVector<int> v;
+    for(auto fri : frislist)
+    {
+        v.push_back(fri.toInt());
+        qDebug() << fri.toInt();
+    }
+    return v;
 }
 

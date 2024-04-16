@@ -605,7 +605,7 @@ QLineEdit:focus
        <enum>Qt::ClickFocus</enum>
       </property>
       <property name="toolTip">
-       <string/>
+       <string>最小化</string>
       </property>
       <property name="toolTipDuration">
        <number>-1</number>
@@ -613,11 +613,11 @@ QLineEdit:focus
       <property name="styleSheet">
        <string notr="true">QToolButton:hover
 {
-	background-color:rgb(200, 200, 200);
+	background-color:rgba(200, 200, 200,85);
 }
 QToolButton:pressed
 {
-	background-color:rgb(220,220,220);
+	background-color:rgba(220,220,220,85);
 }
 </string>
       </property>
@@ -651,7 +651,7 @@ QToolButton:pressed
        <enum>Qt::ClickFocus</enum>
       </property>
       <property name="toolTip">
-       <string/>
+       <string>关闭</string>
       </property>
       <property name="styleSheet">
        <string notr="true">QToolButton:hover 
@@ -704,9 +704,6 @@ QToolButton:pressed
    </property>
    <property name="text">
     <string/>
-   </property>
-   <property name="pixmap">
-    <pixmap resource="lib.qrc">:/lib/default.jpg</pixmap>
    </property>
    <property name="scaledContents">
     <bool>true</bool>
@@ -1157,7 +1154,7 @@ QPushButton:pressed
 }
 QPushButton:hover
 {
-	background-color:rgb(0, 170, 255);
+	background-color:rgba(0, 170, 255,50);
 	border-style:solid;
 	border-width:1px;
 	border-color:rgb(116, 186, 220);
