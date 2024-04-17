@@ -9,6 +9,8 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QJsonValue>
+#include <QMessageBox>
+#include <QMetaMethod>
 
 MainInterface::MainInterface(QWidget *parent) :
     QMainWindow(parent),
@@ -103,13 +105,14 @@ void MainInterface::GetResultFromSer(QString type,int acc,QString nickname,QStri
 {
     if(type == "登录")
     {
-        //设置登录用户文件夹位置
-        m_userpath = m_path + "/" + QString::number(m_account);
         //获取用户信息
         m_account = acc;
         m_headshot = m_path + "/" + QString::number(m_account) + "/" + QString::number(m_account) + ".jpg";
         m_nickname = nickname;
         m_signature = signature;
+
+        //设置登录用户文件夹位置
+        m_userpath = m_path + "/" + QString::number(m_account);
 
         //设置用户头像
         ui->HeadShotBtn->setToolTip("设置个人资料");
@@ -119,6 +122,13 @@ void MainInterface::GetResultFromSer(QString type,int acc,QString nickname,QStri
         //设置用户昵称签名
         ui->NickNameLab->setText(m_nickname);
         ui->SignatureLine->setText(m_signature);
+
+        //初始化好友列表右键菜单
+        InitFriRitBtnMenu();
+        //获取好友列表信息
+        GetFriendsData();
+        //初始化好友列表
+        InitTreeWidget();
 
         //退出登录界面
         m_log->closeSystemIcon();
@@ -225,7 +235,7 @@ QPixmap MainInterface::CreatePixmap(QString picPath)
 void MainInterface::GetFriendsData()
 {
     //读取用户本地存放好友的json文件
-    QFile file(m_path + "/friends.json");
+    QFile file(m_userpath + "/friends.json");
     file.open(QFile::ReadOnly);
     QByteArray filedata = file.readAll();
     file.close();
@@ -235,6 +245,7 @@ void MainInterface::GetFriendsData()
     for(auto group : jsonarr)
     {
         QString fenzuming = group.toObject().value("name").toString();
+        qDebug() << "==========分组: " << fenzuming;
         m_groupNames.append(fenzuming);
         QJsonArray arr = group.toObject().value("friends").toArray();
         for(auto fri : arr)
@@ -249,13 +260,51 @@ void MainInterface::GetFriendsData()
             m_friends.insert(fenzuming,friacc);
             m_frinicknames.insert(friacc,frinkname);
             m_frisignatures.insert(friacc,frisig);
+            qDebug() << "账号:" << friacc << "昵称:" << frinkname << "个性签名:" << frisig;
         }
     }
 }
 
+void MainInterface::InitTreeWidget()
+{
+    //隐藏列头
+    ui->treeWidget->setHeaderHidden(true);
+    //设置总列数
+    ui->treeWidget->setColumnCount(1);
+    //设置头像大小
+    ui->treeWidget->setIconSize(QSize(50,50));
+    //设置分组item和好友item对齐
+    ui->treeWidget->setIndentation(0);
+    //右键菜单
+    ui->treeWidget->setContextMenuPolicy(Qt::CustomContextMenu);
+
+    connect(ui->treeWidget,&QTreeWidget::itemClicked,this,&MainInterface::onTreeWidgetClicked);
+    connect(ui->treeWidget,&QTreeWidget::itemDoubleClicked,this,&MainInterface::onTreeWidgetDoubleClicked);
+    connect(ui->treeWidget,&QTreeWidget::itemExpanded,this,&MainInterface::onItemExpended);
+    connect(ui->treeWidget,&QTreeWidget::itemCollapsed,this,&MainInterface::onItemCollapsed);
+    connect(ui->treeWidget,&QTreeWidget::customContextMenuRequested,this,&MainInterface::FriRightBtnMenu);
+
+    UpdateTreeWidget();
+}
+
 void MainInterface::UpdateTreeWidget()
 {
+    ui->treeWidget->clear();
 
+    for(auto gname : m_groupNames)
+    {
+        //添加分组
+        QTreeWidgetItem * hitem = CreateTreeWidgetItem(gname);
+        ui->treeWidget->addTopLevelItem(hitem);
+
+        //添加好友
+        QList<int> flist = m_friends.values(gname);
+        for(auto f : flist)
+        {
+            QTreeWidgetItem * fitem = CreateTreeWidgetItem("",f);
+            hitem->addChild(fitem);
+        }
+    }
 }
 
 QTreeWidgetItem *MainInterface::CreateTreeWidgetItem(QString fenzuming, int acc)
@@ -264,13 +313,52 @@ QTreeWidgetItem *MainInterface::CreateTreeWidgetItem(QString fenzuming, int acc)
     if(acc == -1)
     {
         QTreeWidgetItem * item = new QTreeWidgetItem(engroup);
+
+        QPixmap pix(":/lib/FLeftArrow.png");
+        pix = pix.scaled(12,12);
+        item->setIcon(0,QIcon(pix));
+
         item->setText(0,fenzuming);
+        //设置分组行不能选择
+        item->setFlags(Qt::ItemIsEnabled);
         return item;
     }
     else
     {
+        QTreeWidgetItem * item = new QTreeWidgetItem(enfriend);
 
+        QPixmap pix = CreatePixmap(m_alluserspath + "/" + QString::number(acc) + ".jpg");
+        item->setIcon(0,QIcon(pix));
+
+        item->setText(0,QString("%1\n%2").arg(m_frinicknames[acc]).arg(m_frisignatures[acc]));
+        //设置好友行行高
+        item->setSizeHint(0,QSize(0,60));
+        return item;
     }
+}
+
+void MainInterface::InitFriRitBtnMenu()
+{
+    /* 好友列表右键菜单 */
+    /*
+        QMenu * m_frimenu; //好友右键菜单
+        QAction * m_Chat; //与好友聊天
+        QAction * m_delete; //删除好友
+    */
+
+    m_addgrp = new QAction("添加分组");
+    connect(m_addgrp,&QAction::triggered,this,&MainInterface::AddGroup);
+
+    m_renamegrp = new QAction("重命名");
+    connect(m_renamegrp,&QAction::triggered,this,&MainInterface::ReNameGroup);
+
+    m_removegrp = new QAction(QIcon(":/lib/delete.png"),"删除分组");
+    connect(m_removegrp,&QAction::triggered,this,&MainInterface::RemoveGroup);
+
+    m_grpmenu = new QMenu(this);
+    m_grpmenu->addAction(m_addgrp);
+    m_grpmenu->addAction(m_renamegrp);
+    m_grpmenu->addAction(m_removegrp);
 }
 
 void MainInterface::on_CloseBtn_clicked()
@@ -284,4 +372,231 @@ void MainInterface::on_CloseBtn_clicked()
 void MainInterface::on_MiniBtn_clicked()
 {
     this->hide();
+}
+
+void MainInterface::onTreeWidgetClicked(QTreeWidgetItem *item)
+{
+    //如果单击项为分组项，则展开或收起
+    if(item->type() == engroup)
+    {
+        if(item->isExpanded())
+        {
+            ui->treeWidget->collapseItem(item);
+        }
+        else
+        {
+            ui->treeWidget->expandItem(item);
+        }
+    }
+}
+
+void MainInterface::onTreeWidgetDoubleClicked(QTreeWidgetItem *item)
+{
+    if(item->type() == enfriend)
+    {
+        qDebug() << "准备打开聊天界面";
+    }
+}
+
+void MainInterface::onItemExpended(QTreeWidgetItem *item)
+{
+    QPixmap pix(":/lib/FDownArrow.png");
+    pix = pix.scaled(12,12);
+    item->setIcon(0,QIcon(pix));
+}
+
+void MainInterface::onItemCollapsed(QTreeWidgetItem *item)
+{
+    QPixmap pix(":/lib/FLeftArrow.png");
+    pix = pix.scaled(12,12);
+    item->setIcon(0,QIcon(pix));
+}
+
+void MainInterface::FriRightBtnMenu(const QPoint &pos)
+{
+    QTreeWidgetItem * sitem = nullptr;
+    sitem = ui->treeWidget->itemAt(pos);
+    if(sitem)
+    {
+        //右键点击分组
+        if(sitem->type() == engroup)
+        {
+            //若为默认分组则不可改名和删除
+            if(sitem->text(0) == "我的好友")
+            {
+                m_renamegrp->setEnabled(false);
+                m_removegrp->setEnabled(false);
+            }
+            else if(!m_renamegrp->isEnabled())
+            {
+                m_renamegrp->setEnabled(true);
+                m_removegrp->setEnabled(true);
+            }
+
+            //将上一个右键点击的分组设置为不可编辑
+            /*
+             * 用户若在重命名分组未更改时直接右键点击其他分组名那么上一个
+             * 分组便依然为可编辑状态，需在此将上一个分组设置回不可编辑
+             */
+            if(m_chaggrpitem != nullptr)
+            {
+                m_chaggrpitem->setFlags(Qt::ItemIsEnabled);
+            }
+
+            qDebug() << "233";
+            m_chaggrpitem = sitem;
+            m_chagName = sitem->text(0);
+
+            m_grpmenu->exec(QCursor::pos());
+        }
+        //右键点击好友
+        else
+        {
+
+        }
+    }
+}
+
+void MainInterface::AddGroup()
+{
+    //是新增分组
+    isaddgrp = true;
+
+    QTreeWidgetItem * item = new QTreeWidgetItem(engroup);
+
+    QPixmap pix(":/lib/FLeftArrow.png");
+    pix = pix.scaled(12,12);
+    item->setIcon(0,QIcon(pix));
+
+    //设置分组行可编辑
+    item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsEditable);
+    ui->treeWidget->addTopLevelItem(item);
+
+    //编辑该新建分组
+    ui->treeWidget->editItem(item);
+    connect(ui->treeWidget,&QTreeWidget::itemChanged,this,&MainInterface::ItemNameChanged);
+}
+
+void MainInterface::ReNameGroup()
+{
+    //将该项设置为可编辑
+    m_chaggrpitem->setFlags(m_chaggrpitem->flags() | Qt::ItemIsEditable);
+    //qDebug() << m_chaggrpitem->flags();
+
+    //编辑该分组
+    ui->treeWidget->editItem(m_chaggrpitem,0);
+    //不是添加分组
+    isaddgrp = false;
+    connect(ui->treeWidget,&QTreeWidget::itemChanged,this,&MainInterface::ItemNameChanged);
+}
+
+void MainInterface::RemoveGroup()
+{
+    switch(QMessageBox::warning(this,"警告","选定的分组将被删除,组内联系人将回移至系统默认分组‘我的好友’,你确认要删除该分组吗?",QMessageBox::Ok | QMessageBox::No))
+    {
+    case QMessageBox::Ok:
+        {
+            //取出该分组下好友后删除该分组
+            m_groupNames.removeOne(m_chagName);
+            QList<int> moveList = m_friends.values(m_chagName);
+            m_friends.remove(m_chagName);
+            //该分组下无好友则直接删除并将更改分组item置空
+            if(moveList.size() <= 0)
+            {
+                delete m_chaggrpitem;
+                m_chaggrpitem = nullptr;
+            }
+            //有好友需将好友迁移到默认分组后更新好友列表
+            else
+            {
+                for(auto fri : moveList)
+                {
+                    m_friends.insert("我的好友",fri);
+                }
+                delete m_chaggrpitem;
+                m_chaggrpitem = nullptr;
+                UpdateTreeWidget();
+            }
+            break;
+        }
+    case QMessageBox::No:
+        break;
+    default:
+        break;
+    }
+}
+
+void MainInterface::ItemNameChanged(QTreeWidgetItem *item)
+{
+    //qDebug() << "更改...";
+    //获取当前输入的分组名
+    QString gn = item->text(0);
+    //添加分组
+    if(isaddgrp)
+    {
+        //查找是否已经存在该分组名
+        int index = m_groupNames.indexOf(gn);
+        if(index != -1 || gn == "")
+        {
+            QMessageBox::warning(this,"警告","分组名重复或为空，请重新创建!");
+            delete item;
+        }
+        else
+        {
+            //未重复则将该分组名添加进分组名容器中
+            m_groupNames.append(gn);
+            //好友列表已更改
+            FriIsChanged = true;
+            item->setFlags(Qt::ItemIsEnabled);
+        }
+        disconnect(ui->treeWidget,&QTreeWidget::itemChanged,this,&MainInterface::ItemNameChanged);
+    }
+    //重命名
+    else
+    {
+        /*
+         * 用户若在重命名分组未更改时直接左键点击其他分组名那么上一个
+         * 分组便依然为可编辑状态，需在此将上一个分组设置回不可编辑
+        */
+        if(item != m_chaggrpitem)
+        {
+            qDebug() << "用户取消更改后点击其他item";
+            disconnect(ui->treeWidget,&QTreeWidget::itemChanged,this,&MainInterface::ItemNameChanged);
+            m_chaggrpitem->setFlags(Qt::ItemIsEnabled);
+            return;
+        }
+        /*
+         * 用户若在重命名分组未更改时直接左键或右键点击当前分组名则判断该if语句，
+         * 分组名未改变则直接执行下面的解除信号槽绑定和恢复当前分组不可编辑
+         */
+        //如果名称未改变则不更改
+        if(m_chagName != gn)
+        {
+            //查找是否已经存在该分组名
+            int index = m_groupNames.indexOf(gn);
+            if(index != -1)
+            {
+                QMessageBox::warning(this,"警告","分组名重复，请重新更改!");
+                item->setText(0,m_chagName);
+            }
+            else
+            {
+                //获取原分组位置和原分组下好友，之后删除原分组，再将原分组名下好友迁移至新分组名内
+                int oldindex = m_groupNames.indexOf(m_chagName);
+                m_groupNames.removeOne(m_chagName);
+                QList<int> flist = m_friends.values(m_chagName);
+                m_friends.remove(m_chagName);
+
+                m_groupNames.insert(oldindex,gn);
+                for(auto f : flist)
+                {
+                    m_friends.insert(gn,f);
+                }
+
+                qDebug() << "已完成重命名";
+            }
+        }
+        disconnect(ui->treeWidget,&QTreeWidget::itemChanged,this,&MainInterface::ItemNameChanged);
+        item->setFlags(Qt::ItemIsEnabled);
+    }
 }

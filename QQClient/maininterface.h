@@ -35,8 +35,10 @@ public slots:
     void ShowFindFri(); //显示查找好友窗口
     QPixmap CreatePixmap(QString picPath); //返回圆形头像
     void GetFriendsData(); //从本地数据文件中获取好友列表信息
+    void InitTreeWidget(); //初始化好友列表TreeWidget
     void UpdateTreeWidget(); //更新好友列表TreeWidget
-    QTreeWidgetItem* CreateTreeWidgetItem(QString fenzuming, int acc = -1);
+    QTreeWidgetItem *CreateTreeWidgetItem(QString fenzuming, int acc = -1); //返回节点指针
+    void InitFriRitBtnMenu(); //初始化好友列表右键菜单
 signals:
     void StartConnecting(); //连接服务器
     void MainInterfaceClose(); //主窗口退出
@@ -44,6 +46,24 @@ private slots:
     void on_CloseBtn_clicked();
 
     void on_MiniBtn_clicked();
+
+    void onTreeWidgetClicked(QTreeWidgetItem * item); //单击好友栏
+
+    void onTreeWidgetDoubleClicked(QTreeWidgetItem * item); //双击好友栏
+
+    void onItemExpended(QTreeWidgetItem * item); //好友列表展开
+
+    void onItemCollapsed(QTreeWidgetItem * item); //好友列表收起
+
+    void FriRightBtnMenu(const QPoint &pos); //好友列表右键菜单
+
+    void AddGroup(); //添加分组
+
+    void ReNameGroup(); //重命名分组
+
+    void RemoveGroup(); //删除分组
+
+    void ItemNameChanged(QTreeWidgetItem * item); //分组名改变
 
 private:
     Ui::MainInterface *ui;
@@ -90,6 +110,17 @@ private:
     QMenu * m_frimenu; //好友右键菜单
     QAction * m_Chat; //与好友聊天
     QAction * m_delete; //删除好友
+
+    /* 好友分组右键菜单 */
+    QMenu * m_grpmenu; //分组右键菜单
+    QAction * m_addgrp; //添加分组
+    QAction * m_renamegrp; //重命名分组
+    QAction * m_removegrp; //删除分组
+    /* 存储更改分组时的信息 */
+    QTreeWidgetItem * m_chaggrpitem = nullptr; //要更改的分组item
+    QString m_chagName; //要更改的分组名
+    bool isaddgrp; //是否是添加好友分组
+    bool FriIsChanged = false; //好友列表是否已更改
 };
 
 #endif // MAININTERFACE_H
