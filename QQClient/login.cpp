@@ -420,8 +420,8 @@ void Login::on_pushButton_clicked()
         {
             ui->shuruacc->show();
             QTimer::singleShot(3000,ui->shuruacc,SLOT(hide()));
-            return;
         }
+        return;
     }
     //检查是否输入密码
     if(pwd == "")
@@ -430,8 +430,8 @@ void Login::on_pushButton_clicked()
         {
             ui->shurupwd->show();
             QTimer::singleShot(3000,ui->shurupwd,SLOT(hide()));
-            return;
         }
+        return;
     }
     //如果用户数据中无该账号记录则为第一次登录
     if(m_Accs.indexOf(acc) == -1)

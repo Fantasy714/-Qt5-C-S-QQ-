@@ -76,6 +76,10 @@ MainInterface::MainInterface(QWidget *parent) :
     //初始化查找好友窗口
     m_FindFri = FindFriends::createFindFriends();
 
+    connect(m_FindFri,&FindFriends::SearchingAcc,this,&MainInterface::SearchingAcc);
+    connect(this,&MainInterface::SendReplyToFindFri,m_FindFri,&FindFriends::GetReply);
+    connect(this,&MainInterface::sendSearchFriMsgToSer,m_mytcp,&TcpThread::sendSearchFriMsgToSer);
+
     connect(ui->AddFriends,&QToolButton::clicked,this,&MainInterface::ShowFindFri);
     connect(ui->AddFriends_2,&QToolButton::clicked,this,&MainInterface::ShowFindFri);
 }
@@ -85,6 +89,10 @@ MainInterface::~MainInterface()
     thread->quit();
     thread->wait();
     thread->deleteLater();
+    for(auto af : m_addfri)
+    {
+        delete af;
+    }
     delete m_mytcp;
     delete m_log;
     delete ui;
@@ -101,7 +109,7 @@ void MainInterface::ShowAccount(bool isfind)
     m_accClass->show();
 }
 
-void MainInterface::GetResultFromSer(QString type,int acc,QString nickname,QString signature)
+void MainInterface::GetResultFromSer(QString type,int acc,QString nickname,QString signature,QString result,QString uData)
 {
     if(type == "登录")
     {
@@ -138,6 +146,21 @@ void MainInterface::GetResultFromSer(QString type,int acc,QString nickname,QStri
         m_sysIcon->setToolTip("QQ:" + m_nickname + "(" + QString::number(m_account) + ")");
         m_sysIcon->show();
         this->show();
+    }
+    else if(type == "查找好友")
+    {
+        if(result == "查找失败")
+        {
+            emit SendReplyToFindFri(false);
+            return;
+        }
+        else
+        {
+            QStringList friData = uData.split("@@");
+            AddFriend * af = new AddFriend(true,m_groupNames,friData);
+            connect(af,&AddFriend::CloseAddFriend,this,&MainInterface::AddFriendClosed);
+            af->show();
+        }
     }
 }
 
@@ -359,6 +382,33 @@ void MainInterface::InitFriRitBtnMenu()
     m_grpmenu->addAction(m_addgrp);
     m_grpmenu->addAction(m_renamegrp);
     m_grpmenu->addAction(m_removegrp);
+}
+
+void MainInterface::SearchingAcc(QString acc)
+{
+    int searchAcc = acc.toInt();
+    //若查找结果为空则不存在该好友，否则存在
+    bool isFri = m_frinicknames.value(searchAcc) == "" ? false : true;
+    //若已存在该好友或查找账号为自己则直接返回结果
+    if(isFri || m_account == searchAcc)
+    {
+        qDebug() << searchAcc;
+        emit SendReplyToFindFri(true);
+        return;
+    }
+    emit sendSearchFriMsgToSer(searchAcc);
+}
+
+void MainInterface::AddFriendClosed(QString type,int acc,QString GpNa)
+{
+    if(type == "完成")
+    {
+
+    }
+    //获得该好友界面指针并删除该指针
+    AddFriend * af = (AddFriend*)sender();
+    m_addfri.removeOne(af);
+    delete af;
 }
 
 void MainInterface::on_CloseBtn_clicked()

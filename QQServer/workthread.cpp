@@ -6,10 +6,9 @@
 #include <QJsonValue>
 #include <QFileInfo>
 
-QReadWriteLock WorkThread::mutex;
-
-WorkThread::WorkThread(QTcpSocket * tcp,QObject *parent) : QObject(parent), QRunnable()
+WorkThread::WorkThread(QReadWriteLock * mtx,QTcpSocket * tcp,QObject *parent) : QObject(parent), QRunnable()
 {
+    mutex = mtx;
     m_tcp = tcp;
 }
 
@@ -101,6 +100,12 @@ void WorkThread::recvData(QByteArray data,QByteArray filedata)
         pwd = obj.value("pwd").toString();
         CltLogin(account,pwd);
     }
+    else if(type == "查找好友")
+    {
+        qDebug() << "用户查找好友中";
+        account = obj.value("account").toInt();
+        SearchingFri(account);
+    }
 }
 
 void WorkThread::ReplyToJson(QString type, QString pwd, QString result,QString fileName,int acc)
@@ -123,11 +128,11 @@ void WorkThread::ReplyToJson(QString type, QString pwd, QString result,QString f
         obj.insert("result",result);
         if(result == "登录成功")
         {
-            obj.insert("signature",m_userDatas.at(1));
+            obj.insert("signature",m_userDatas.at(ensignature));
             if(isFirstLogin)
             {
                 //如果为第一次登录则发送账号昵称，头像和好友信息
-                obj.insert("nickname",m_userDatas.at(0));
+                obj.insert("nickname",m_userDatas.at(ennickname));
 
                 //发送头像和好友信息
                 QString fileN1 = m_path + "/" + QString::number(acc) + "/" + QString::number(acc) + ".jpg"; //头像
@@ -150,6 +155,21 @@ void WorkThread::ReplyToJson(QString type, QString pwd, QString result,QString f
                 sendFileName = fileN1 + "?" + fileN2;
                 qDebug() << "要发送的文件名:" << sendFileName;
             }
+        }
+    }
+    else if(type == "查找好友")
+    {
+        obj.insert("result",result);
+        //如果查找成功则添加用户信息及头像
+        if(result == "查找成功")
+        {
+            sendFileName = fileName;
+
+            //将需要的几个用户资料添加到字符串中并用@@隔开
+            QString uData = QString::number(acc) + "@@" + m_userDatas.at(ennickname) + "@@" +
+                    m_userDatas.at(ensex) + "@@" + m_userDatas.at(enage) + "@@" + m_userDatas.at(enlocation);
+
+            obj.insert("userData",uData);
         }
     }
     QJsonDocument doc(obj);
@@ -194,6 +214,17 @@ void WorkThread::SendReply(QByteArray jsondata, QString fileName)
             data.append(fileD1);
             data.append(fileD2);
         }
+        else
+        {
+            //将文件中数据读出
+            QFile file(fileName);
+            file.open(QFile::ReadOnly);
+            QByteArray fileD = file.readAll();
+            file.close();
+
+            //将文件加入待发送数据中
+            data.append(fileD);
+        }
     }
     //给所有数据数据添加表头
     int size = qToBigEndian(data.size());
@@ -207,7 +238,7 @@ void WorkThread::SendReply(QByteArray jsondata, QString fileName)
 
 void WorkThread::recvRegistered(int acc, QString pwd)
 {
-    QWriteLocker lock(&mutex);
+    QWriteLocker lock(mutex);
     QString iconName = sql.Addaccount(acc,pwd);
     //如果返回的头像名为空则为注册失败
     if(iconName == "")
@@ -263,7 +294,7 @@ void WorkThread::recvRegistered(int acc, QString pwd)
 
 void WorkThread::recvFind(int acc)
 {
-    QReadLocker lock(&mutex);
+    QReadLocker lock(mutex);
     QString rtpwd = sql.FindPwd(acc);
     if(rtpwd == "")
     {
@@ -280,7 +311,7 @@ void WorkThread::recvFind(int acc)
 
 void WorkThread::CltLogin(int acc, QString pwd)
 {
-    QWriteLocker lock(&mutex);
+    QWriteLocker lock(mutex);
     int result = sql.LoginVerification(acc,pwd);
     if(result == -1) //账号或密码错误
     {
@@ -302,5 +333,23 @@ void WorkThread::CltLogin(int acc, QString pwd)
         emit UserOnLine(acc,port);
         ReplyToJson("登录","","登录成功","",acc);
         ThreadbackMsg("登录",acc,"登录成功");
+    }
+}
+
+void WorkThread::SearchingFri(int acc)
+{
+    QReadLocker lock(mutex);
+    QString res = sql.OnLineSta(acc);
+    //如果返回的结果为空或离线则发送查找失败
+    if(res == "离线" || res == "")
+    {
+        qDebug() << "查找好友失败，该账号不存在或未上线";
+        ReplyToJson("查找好友","","查找失败");
+    }
+    //否则查找成功,返回用户信息
+    else
+    {
+        m_userDatas = sql.UserMessages(acc);
+        ReplyToJson("查找好友","","查找成功",m_path + "/" + QString::number(acc) + "/" + QString::number(acc) + ".jpg",acc);
     }
 }

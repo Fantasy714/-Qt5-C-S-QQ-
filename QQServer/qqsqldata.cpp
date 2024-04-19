@@ -182,3 +182,15 @@ QVector<int> Qqsqldata::ReturnFris(int acc)
     return v;
 }
 
+QString Qqsqldata::OnLineSta(int acc)
+{
+    result.exec(QString("select onlinestatus from qqaccount where account = %1;").arg(acc));
+    if(!result.next())
+    {
+        qDebug() << "无该账号";
+        return "";
+    }
+    QString sta = result.value("onlinestatus").toString();
+    return sta;
+}
+

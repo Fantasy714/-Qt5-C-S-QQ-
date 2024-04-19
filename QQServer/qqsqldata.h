@@ -20,6 +20,7 @@ public:
     bool CreateFriends(int acc); //注册成功时创建该用户的好友列表
     bool AddFriend(int acc1,int acc2); //添加好友
     QVector<int> ReturnFris(int acc); //返回该用户的所有好友
+    QString OnLineSta(int acc); //返回该用户的在线状态
 signals:
 
 private:

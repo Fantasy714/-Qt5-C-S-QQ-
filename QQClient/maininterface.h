@@ -5,6 +5,7 @@
 #include "login.h"
 #include "account.h"
 #include "tcpthread.h"
+#include "addfriend.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <QSystemTrayIcon>
@@ -24,9 +25,9 @@ class MainInterface : public QMainWindow
 public:
     explicit MainInterface(QWidget *parent = nullptr);
     ~MainInterface();
-    void ShowAccount(bool); //显示注册界面
 public slots:
-    void GetResultFromSer(QString type,int acc,QString nickname,QString signature); //获取服务器返回的数据
+    void ShowAccount(bool); //显示注册界面
+    void GetResultFromSer(QString type,int acc,QString nickname,QString signature,QString result,QString uData); //获取服务器返回的数据
     void initSystemIcon(); //初始化系统托盘
     void on_activatedSysTrayIcon(QSystemTrayIcon::ActivationReason reason); //点击托盘图标
     void mousePressEvent(QMouseEvent *e) override;
@@ -39,9 +40,13 @@ public slots:
     void UpdateTreeWidget(); //更新好友列表TreeWidget
     QTreeWidgetItem *CreateTreeWidgetItem(QString fenzuming, int acc = -1); //返回节点指针
     void InitFriRitBtnMenu(); //初始化好友列表右键菜单
+    void SearchingAcc(QString acc); //查找账号信息
+    void AddFriendClosed(QString type,int acc,QString GpNa); //接收添加好友界面关闭信号
 signals:
     void StartConnecting(); //连接服务器
     void MainInterfaceClose(); //主窗口退出
+    void SendReplyToFindFri(bool type); //将回应发送回查找好友界面
+    void sendSearchFriMsgToSer(int acc); //向服务器发送查找好友信息
 private slots:
     void on_CloseBtn_clicked();
 
@@ -83,7 +88,8 @@ private:
     /* 其他界面 */
     Login * m_log; //登录界面
     Account * m_accClass; //注册界面
-    FindFriends * m_FindFri; //查找好友窗口
+    FindFriends * m_FindFri; //查找好友界面
+    QList<AddFriend*> m_addfri; //添加好友界面
 
     /* 登录用户信息 */
     int m_account; //账户
@@ -116,6 +122,7 @@ private:
     QAction * m_addgrp; //添加分组
     QAction * m_renamegrp; //重命名分组
     QAction * m_removegrp; //删除分组
+
     /* 存储更改分组时的信息 */
     QTreeWidgetItem * m_chaggrpitem = nullptr; //要更改的分组item
     QString m_chagName; //要更改的分组名

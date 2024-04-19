@@ -8,6 +8,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include "workthread.h"
+#include <QReadWriteLock>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -36,5 +37,6 @@ private:
     QHash<int,QTcpSocket*> m_onlines; //在线用户哈希表
     QString m_path = QCoreApplication::applicationDirPath() + "/usersdata"; //用户数据文件夹位置
     QDir m_dir; //操作文件目录
+    static QReadWriteLock * mutex;
 };
 #endif // MAINWINDOW_H

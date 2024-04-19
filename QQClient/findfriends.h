@@ -5,6 +5,7 @@
 #include <QMouseEvent>
 #include <QMutex>
 #include <QCloseEvent>
+#include <QMessageBox>
 
 namespace Ui {
 class FindFriends;
@@ -24,8 +25,16 @@ public:
     void mouseReleaseEvent(QMouseEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
 
+public slots:
+    void GetReply(bool type); //返回搜索结果
+
+signals:
+    void SearchingAcc(QString acc); //发送要查找的好友账号
+
 private slots:
     void on_MiniBtn_clicked();
+
+    void on_pushButton_clicked();
 
 private:
     Ui::FindFriends *ui;
@@ -34,6 +43,7 @@ private:
     static QMutex m_mutex; //锁
     bool isMainWidget = false; //记录点下时是否在主窗口上而非内部控件上
     QPoint m_point; //记录鼠标点下位置
+    QMessageBox MsgBox; //消息提示框
 };
 
 #endif // FINDFRIENDS_H

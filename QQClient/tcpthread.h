@@ -26,10 +26,11 @@ public slots:
     void StartConnect(); //开始连接,连接失败则自动重连
     void GetClose(); //接收关闭信号
     void LoginToServer(bool isfirst,int acc,QString pwd,bool isChecked); //登录
+    void sendSearchFriMsgToSer(int acc); //向服务器发送查找好友信息
 signals:
     void sendResultToAccMsg(QString type,QString pwd,QString result); //发送结果回注册界面
     void sendResultToLogin(QString result); //发送结果回登录界面
-    void sendResultToMainInterFace(QString type,int acc,QString nickname,QString signature); //发送结果回登录界面
+    void sendResultToMainInterFace(QString type,int acc,QString nickname,QString signature,QString result,QString uData); //发送结果回登录界面
     void isConnectingWithServer(bool onl); //连接成功时发出true,服务器断开连接发送false
 private:
     QTcpSocket * m_tcp = nullptr; //tcp套接字
@@ -43,9 +44,11 @@ private:
     bool isFirstLogin; //是否是第一次登录
     QString m_fileName; //发送文件的地址
     QString m_path = QCoreApplication::applicationDirPath() + "/userdata"; //用户数据文件夹位置
+    QString m_alluserspath = m_path + "/allusers"; //存放好友头像文件夹位置
     QDir m_dir; //操作文件夹
     QFile m_file; //操作文件
     bool isRemember; //是否记住密码
+    int m_searchAcc; //要查找的账号
 };
 
 #endif // TCPTHREAD_H

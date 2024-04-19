@@ -58,6 +58,13 @@ void TcpThread::LoginToServer(bool isfirst, int acc, QString pwd,bool isChecked)
     MsgToJson();
 }
 
+void TcpThread::sendSearchFriMsgToSer(int acc)
+{
+    m_type = "查找好友";
+    m_searchAcc = acc;
+    MsgToJson();
+}
+
 void TcpThread::connectToServer()
 {
     qDebug() << "tcp套接字线程ID:" << QThread::currentThreadId();
@@ -281,7 +288,37 @@ void TcpThread::ParseMsg(QByteArray data,QByteArray filedata)
                 m_file.write(msg.toUtf8());
                 m_file.close();
             }
-            emit sendResultToMainInterFace(type,m_account,nickname,signature);
+            emit sendResultToMainInterFace(type,m_account,nickname,signature,"","");
+        }
+    }
+    else if(type == "查找好友")
+    {
+        QString res = obj.value("result").toString();
+        if(res == "查找失败")
+        {
+            qDebug() << "好友查找失败";
+            emit sendResultToMainInterFace(type,-1,"","","查找失败","");
+        }
+        else
+        {
+            qDebug() << "查找成功";
+
+            //获取用户信息
+            QString uD = obj.value("userData").toString();
+            //获取该用户账号
+            QString friAcc = uD.split("@@").at(0);
+
+            //若本地无该头像照片则将用户头像保存到本地
+            QString friHdPath = m_alluserspath + "/" + friAcc + ".jpg";
+            m_file.setFileName(friHdPath);
+            if(!m_file.exists())
+            {
+                m_file.open(QFile::WriteOnly);
+                m_file.write(filedata);
+                m_file.close();
+            }
+
+            emit sendResultToMainInterFace(type,-1,"","","查找成功",uD);
         }
     }
 }
@@ -323,6 +360,11 @@ void TcpThread::MsgToJson()
         obj.insert("isfirstlogin",isFirstLogin);
         obj.insert("account",m_account);
         obj.insert("pwd",m_pwd);
+    }
+    else if(m_type == "查找好友")
+    {
+        qDebug() << "查找好友中";
+        obj.insert("account",m_searchAcc);
     }
     QJsonDocument doc(obj);
     QByteArray data = doc.toJson();

@@ -124,11 +124,11 @@
        <property name="styleSheet">
         <string notr="true">QToolButton:hover
 {
-	background-color:rgb(200, 200, 200);
+	background-color:rgba(200, 200, 200,85);
 }
 QToolButton:pressed
 {
-	background-color:rgb(220,220,220);
+	background-color:rgba(220,220,220,85);
 }
 </string>
        </property>
@@ -277,12 +277,18 @@ QWidget
 	border-color:rgb(0, 170, 255);
 }</string>
             </property>
+            <property name="placeholderText">
+             <string>请输入要添加的账号</string>
+            </property>
            </widget>
           </item>
           <item>
            <widget class="QCheckBox" name="checkBox">
             <property name="text">
              <string>在线</string>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
             </property>
             <property name="checked">
              <bool>true</bool>

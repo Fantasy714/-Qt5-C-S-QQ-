@@ -5,6 +5,8 @@
 #include <QDir>
 #include <QFile>
 
+QReadWriteLock* MainWindow::mutex = new QReadWriteLock;
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -42,6 +44,7 @@ MainWindow::~MainWindow()
         sock->close();
         sock->deleteLater();
     }
+    delete mutex;
     delete ui;
 }
 
@@ -60,7 +63,7 @@ void MainWindow::ReadMsgFromClt()
 {
     //sender返回指向发送信号的对象的指针
     QTcpSocket * sock = (QTcpSocket*)sender();
-    WorkThread * WThread = new WorkThread(sock);
+    WorkThread * WThread = new WorkThread(mutex,sock);
     connect(WThread,&WorkThread::ThreadbackMsg,this,&MainWindow::getThreadMsg);
     connect(WThread,&WorkThread::UserOnLine,this,&MainWindow::UserOnLine);
     QThreadPool::globalInstance()->start(WThread);
