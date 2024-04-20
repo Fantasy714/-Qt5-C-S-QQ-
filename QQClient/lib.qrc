@@ -26,5 +26,10 @@
         <file>lib/FLeftArrow.png</file>
         <file>lib/Chat.png</file>
         <file>lib/delete.png</file>
+        <file>lib/cut.png</file>
+        <file>lib/Big.png</file>
+        <file>lib/picIcon.png</file>
+        <file>lib/fileIcon.png</file>
+        <file>lib/biaoqing.png</file>
     </qresource>
 </RCC>

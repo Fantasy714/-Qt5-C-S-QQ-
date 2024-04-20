@@ -44,7 +44,6 @@ MainWindow::~MainWindow()
         sock->close();
         sock->deleteLater();
     }
-    delete mutex;
     delete ui;
 }
 
@@ -56,7 +55,7 @@ void MainWindow::ServerhasNewConnection()
     ui->PlainTextEdit->appendPlainText(QString("有新客户端连接到服务器,服务器分配的端口号为: " + QString::number(port)));
     connect(sock,&QTcpSocket::readyRead,this,&MainWindow::ReadMsgFromClt);
     connect(sock,&QTcpSocket::disconnected,this,&MainWindow::CltDisconnected);
-    m_sockets.append(sock);
+    m_sockets.insert(port,sock);
 }
 
 void MainWindow::ReadMsgFromClt()
@@ -66,6 +65,7 @@ void MainWindow::ReadMsgFromClt()
     WorkThread * WThread = new WorkThread(mutex,sock);
     connect(WThread,&WorkThread::ThreadbackMsg,this,&MainWindow::getThreadMsg);
     connect(WThread,&WorkThread::UserOnLine,this,&MainWindow::UserOnLine);
+    connect(WThread,&WorkThread::SendMsgToClt,this,&MainWindow::SendMsgToClt);
     QThreadPool::globalInstance()->start(WThread);
 }
 
@@ -82,7 +82,7 @@ void MainWindow::CltDisconnected()
         str += ", 该客户端账号为: " + QString::number(acc);
     }
     ui->PlainTextEdit->appendPlainText(str);
-    m_sockets.removeOne(sock);
+    m_sockets.remove(sock->peerPort());
     sock->close();
     sock->deleteLater();
 }
@@ -92,25 +92,25 @@ void MainWindow::getThreadMsg(QString type,int account,QString msg,int target)
     //将客户端请求内容显示到服务端界面上
     if(type == "注册")
     {
-        QString res = type + ":账号" + QString::number(account) + "," + msg;
+        QString res = type + "  账号:" + QString::number(account) + "," + msg;
         ui->PlainTextEdit->appendPlainText(res);
     }
     else if(type == "找回密码")
     {
         if(msg == "")
         {
-            QString res = type + ":账号" + QString::number(account) + ",找回密码失败";
+            QString res = type + "  账号:" + QString::number(account) + ",找回密码失败";
             ui->PlainTextEdit->appendPlainText(res);
         }
         else
         {
-            QString res = type + ":账号" + QString::number(account) + ",找回密码成功,密码为:" + msg;
+            QString res = type + "  账号:" + QString::number(account) + ",找回密码成功,密码为:" + msg;
             ui->PlainTextEdit->appendPlainText(res);
         }
     }
     else if(type == "登录")
     {
-        QString res = type + ":账号" + QString::number(account) + "," + msg;
+        QString res = type + "  账号:" + QString::number(account) + "," + msg;
         ui->PlainTextEdit->appendPlainText(res);
         if(msg == "登录成功")
         {
@@ -121,23 +121,32 @@ void MainWindow::getThreadMsg(QString type,int account,QString msg,int target)
             }
         }
     }
+    else if(type == "用户掉线重连")
+    {
+        QString res = type + "  账号:" + QString::number(account);
+        ui->PlainTextEdit->appendPlainText(res);
+    }
 }
 
 void MainWindow::UserOnLine(int acc, quint16 sockport)
 {
-    QTcpSocket * thissock = nullptr;
-    for(auto sock : m_sockets)
+    QTcpSocket * thissock = m_sockets[sockport];
+    m_onlines.insert(acc,thissock);
+    qDebug() << "成功加入在线用户哈希表";
+}
+
+void MainWindow::SendMsgToClt(quint16 port, int type, int acc, int targetacc, QByteArray jsondata, QString fileName, QString msgtype)
+{
+    QTcpSocket * sock;
+    //获取目标套接字
+    if(msgtype == "发送好友申请" || type == SendMsg)
     {
-        if(sock->peerPort() == sockport)
-        {
-            qDebug() << "找到该套接字";
-            thissock = sock;
-            break;
-        }
+        sock = m_onlines[targetacc];
     }
-    if(thissock != nullptr)
+    else
     {
-        m_onlines.insert(acc,thissock);
-        qDebug() << "成功加入在线用户哈希表";
+        sock = m_sockets[port];
     }
+    SendThread * st = new SendThread(sock,jsondata,fileName,msgtype);
+    QThreadPool::globalInstance()->start(st);
 }

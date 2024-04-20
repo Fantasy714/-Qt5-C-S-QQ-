@@ -14,14 +14,14 @@ class AddFriend : public QWidget
     Q_OBJECT
 
 public:
-    explicit AddFriend(bool type,QStringList gn, QStringList umsg, QWidget *parent = nullptr);
+    explicit AddFriend(bool type,QStringList gn, QStringList umsg,QString yanzheng = "", QWidget *parent = nullptr);
     ~AddFriend();
     void mousePressEvent(QMouseEvent *e) override;
     void mouseMoveEvent(QMouseEvent *e) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
     QPixmap CreatePixmap(QString picPath); //返回圆形头像
 signals:
-    void CloseAddFriend(QString type,int acc = -1, QString GpNa = ""); //向主窗口发送好友申请操作信息
+    void CloseAddFriend(QString type = "",int acc = -1, QString GpNa = "",QString yanzheng = ""); //向主窗口发送好友申请操作信息
 
 private slots:
     void on_NoBtn_clicked();
@@ -37,7 +37,7 @@ private:
     QString m_alluserspath = QCoreApplication::applicationDirPath() + "/userdata/allusers"; //存放好友头像文件夹位置
 
     enum umsg { enacc = 0,ennickname,ensex,enage,enlocation };
-    /* 用户信息 */
+    /* 想添加的用户信息 */
     int m_acc; //账号
     QString m_nickname; //昵称
     QString m_sex; //性别

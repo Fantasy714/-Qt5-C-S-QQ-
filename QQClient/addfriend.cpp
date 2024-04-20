@@ -2,8 +2,9 @@
 #include "ui_addfriend.h"
 #include <QPainter>
 #include <QMessageBox>
+#include <QDebug>
 
-AddFriend::AddFriend(bool type,QStringList gn, QStringList umsg, QWidget *parent) :
+AddFriend::AddFriend(bool type,QStringList gn, QStringList umsg, QString yanzheng, QWidget *parent) :
     QWidget(parent),
     ui(new Ui::AddFriend)
 {
@@ -11,8 +12,16 @@ AddFriend::AddFriend(bool type,QStringList gn, QStringList umsg, QWidget *parent
 
     m_type = type;
 
+    //true为发送好友申请界面，false为接收界面
+
     if(type == false)
     {
+        //若有验证消息则添加验证消息
+        if(yanzheng != "")
+        {
+            ui->Yanzheng->setPlainText(yanzheng);
+        }
+        //更改按钮文字及提示信息
         ui->YanzhengLab->setText("验证信息");
         ui->Yanzheng->setReadOnly(true);
         ui->OkBtn->setText("同意");
@@ -38,14 +47,19 @@ AddFriend::AddFriend(bool type,QStringList gn, QStringList umsg, QWidget *parent
     ui->AgeLab->setText("年龄:" + m_age);
     ui->LocLab->setText("所在地:" + m_location);
 
+    //设置窗口图标
+    setWindowIcon(QIcon(":/lib/QQ.png"));
     //设置窗口无边框
     setWindowFlags(Qt::FramelessWindowHint);
+
+    setAttribute(Qt::WA_QuitOnClose,false);
 
     //最小化
     connect(ui->MiniBtn,&QToolButton::clicked,this,&AddFriend::showMinimized);
     //若为收到好友申请则关闭等同忽略该好友申请
     connect(ui->CloseBtn,&QToolButton::clicked,this,[=](){
-            emit CloseAddFriend("关闭");
+            qDebug() << "退出好友申请界面";
+            emit CloseAddFriend();
     });
 }
 
@@ -105,10 +119,7 @@ QPixmap AddFriend::CreatePixmap(QString picPath)
 
 void AddFriend::on_NoBtn_clicked()
 {
-    if(ui->NoBtn->text() == "取消")
-    {
-        emit CloseAddFriend("关闭");
-    }
+    emit CloseAddFriend();
 }
 
 void AddFriend::on_OkBtn_clicked()
@@ -116,6 +127,10 @@ void AddFriend::on_OkBtn_clicked()
     if(ui->OkBtn->text() == "完成")
     {
         QMessageBox::information(this,"提示","您的好友添加请求已发送，请等待对方确认");
-        emit CloseAddFriend("完成",m_acc,ui->FriCombo->currentText());
+        emit CloseAddFriend("完成",m_acc,ui->FriCombo->currentText(),ui->Yanzheng->toPlainText());
+    }
+    else
+    {
+        emit CloseAddFriend("同意",m_acc,ui->FriCombo->currentText());
     }
 }

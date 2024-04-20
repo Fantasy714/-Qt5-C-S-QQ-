@@ -50,19 +50,28 @@ void TcpThread::GetClose()
 
 void TcpThread::LoginToServer(bool isfirst, int acc, QString pwd,bool isChecked)
 {
-    m_type = "登录";
     isFirstLogin = isfirst;
     m_account = acc;
     m_pwd = pwd;
     isRemember = isChecked;
-    MsgToJson();
+    MsgToJson(LoginAcc);
 }
 
 void TcpThread::sendSearchFriMsgToSer(int acc)
 {
-    m_type = "查找好友";
-    m_searchAcc = acc;
-    MsgToJson();
+    //设置目标账号
+    MsgToJson(SearchFri,0,acc);
+}
+
+void TcpThread::sendFriAddMsgToSer(int myacc, int targetacc, QString type,QString yanzheng)
+{
+    qDebug() << "正在发送好友申请信息";
+    MsgToJson(AddFri,myacc,targetacc,type,yanzheng);
+}
+
+void TcpThread::ChangeOnlineSta(int acc, QString onl)
+{
+    MsgToJson(ChangeOnlSta,acc,-1,onl);
 }
 
 void TcpThread::connectToServer()
@@ -80,10 +89,14 @@ void TcpThread::connectToServer()
 
 void TcpThread::recvAccMsg(QString type,int acc, QString pwd)
 {
-    m_type = type;
-    m_account = acc;
-    m_pwd = pwd;
-    MsgToJson();
+    if(type == "注册")
+    {
+        MsgToJson(Registration,acc,0,pwd);
+    }
+    else
+    {
+        MsgToJson(FindPwd,acc,0,pwd);
+    }
 }
 
 void TcpThread::ConnectSuccess()
@@ -163,20 +176,24 @@ void TcpThread::ReadMsgFromServer()
 void TcpThread::ParseMsg(QByteArray data,QByteArray filedata)
 {
     QJsonObject obj = QJsonDocument::fromJson(data).object();
-    QString type = obj.value("type").toString();
-    if(type == "找回密码")
+    int type = obj.value("type").toInt();
+    switch(type)
+    {
+    case FindPwd:
     {
         qDebug() << "返回找回密码结果";
         QString pwd = obj.value("pwd").toString();
         emit sendResultToAccMsg("找回密码",pwd,"");
+        break;
     }
-    else if(type == "注册")
+    case Registration:
     {
         qDebug() << "返回注册结果";
         QString result = obj.value("result").toString();
         emit sendResultToAccMsg("注册","",result);
+        break;
     }
-    else if(type == "登录")
+    case LoginAcc:
     {
         qDebug() << "返回登录结果";
         bool isfirst = obj.value("isfirstlogin").toBool();
@@ -290,8 +307,9 @@ void TcpThread::ParseMsg(QByteArray data,QByteArray filedata)
             }
             emit sendResultToMainInterFace(type,m_account,nickname,signature,"","");
         }
+        break;
     }
-    else if(type == "查找好友")
+    case SearchFri:
     {
         QString res = obj.value("result").toString();
         if(res == "查找失败")
@@ -320,6 +338,63 @@ void TcpThread::ParseMsg(QByteArray data,QByteArray filedata)
 
             emit sendResultToMainInterFace(type,-1,"","","查找成功",uD);
         }
+        break;
+    }
+    case AddFri:
+    {
+        QString result = obj.value("result").toString();
+        qDebug() << result;
+        if(result == "该好友已下线")
+        {
+            int targetAcc = obj.value("targetaccount").toInt();
+            emit sendResultToMainInterFace(AddFri,targetAcc,"","",result,"");
+        }
+        else
+        {
+            QString msgType = obj.value("msgtype").toString();
+            if(msgType == "发送好友申请")
+            {
+                //获取用户信息
+                QString uD = obj.value("userData").toString();
+                //获取该用户账号
+                QString friAcc = uD.split("@@").at(0);
+                //若本地无该头像照片则将用户头像保存到本地
+                QString friHdPath = m_alluserspath + "/" + friAcc + ".jpg";
+                m_file.setFileName(friHdPath);
+                if(!m_file.exists())
+                {
+                    m_file.open(QFile::WriteOnly);
+                    m_file.write(filedata);
+                    m_file.close();
+                }
+
+                QString yanzheng = obj.value("yanzheng").toString();
+                emit sendResultToMainInterFace(type,-1,"","","",uD,yanzheng,msgType);
+            }
+        }
+        break;
+    }
+    case SendMsg:
+    {
+        //获取发送端账号和发送的信息及信息类型
+        int acc = obj.value("acc").toInt();
+        QString msgType = obj.value("msgType").toString();
+        QString msg = obj.value("msg").toString();
+        qDebug() << "收到来自: " << acc << " 的信息，信息类型为: " << msgType << " 信息内容: " << msg;
+
+        //若为添加好友成功则取出好友昵称和个性签名
+        if(msgType == "添加好友成功")
+        {
+            QString uD = obj.value("userData").toString();
+            QStringList uDatas = uD.split("@@");
+            //第一个信息为昵称，第二个为个性签名
+            QString nickname = uDatas.at(0);
+            QString signature = uDatas.at(1);
+
+            sendResultToMainInterFace(type,acc,nickname,signature,"","",msg,msgType);
+        }
+        break;
+    }
     }
 }
 
@@ -338,33 +413,56 @@ void TcpThread::DisconnectFromServer()
     m_timer->start(3000);
 }
 
-void TcpThread::MsgToJson()
+void TcpThread::MsgToJson(int type,int acc,int targetacc,QString Msg,QString yanzheng)
 {
     QString fileName = "";
     QJsonObject obj;
-    obj.insert("type",m_type);
-    if(m_type == "注册")
+    obj.insert("type",type);
+    switch(type)
+    {
+    case Registration:
     {
         qDebug() << "注册中...";
-        obj.insert("account",m_account);
-        obj.insert("pwd",m_pwd);
+        obj.insert("account",acc);
+        obj.insert("pwd",Msg);
+        break;
     }
-    else if(m_type == "找回密码")
+    case FindPwd:
     {
         qDebug() << "找回密码中...";
-        obj.insert("account",m_account);
+        obj.insert("account",acc);
+        break;
     }
-    else if(m_type == "登录")
+    case LoginAcc:
     {
         qDebug() << "登录中...";
         obj.insert("isfirstlogin",isFirstLogin);
         obj.insert("account",m_account);
         obj.insert("pwd",m_pwd);
+        break;
     }
-    else if(m_type == "查找好友")
+    case SearchFri:
     {
         qDebug() << "查找好友中";
-        obj.insert("account",m_searchAcc);
+        obj.insert("account",targetacc);
+        break;
+    }
+    case AddFri:
+    {
+        qDebug() << "发送好友申请信息";
+        obj.insert("account",acc);
+        obj.insert("targetaccount",targetacc);
+        obj.insert("msgtype",Msg);
+        obj.insert("yanzheng",yanzheng);
+        break;
+    }
+    case ChangeOnlSta:
+    {
+        qDebug() << "改变在线状态";
+        obj.insert("account",acc);
+        obj.insert("onlinestatus",Msg);
+        break;
+    }
     }
     QJsonDocument doc(obj);
     QByteArray data = doc.toJson();

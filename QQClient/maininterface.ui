@@ -659,7 +659,16 @@ QToolButton:pressed
            </property>
            <layout class="QVBoxLayout" name="verticalLayout_5">
             <item>
-             <widget class="QTreeWidget" name="treeWidget"/>
+             <widget class="QTreeWidget" name="treeWidget">
+              <property name="styleSheet">
+               <string notr="true"/>
+              </property>
+              <column>
+               <property name="text">
+                <string notr="true">1</string>
+               </property>
+              </column>
+             </widget>
             </item>
            </layout>
           </widget>

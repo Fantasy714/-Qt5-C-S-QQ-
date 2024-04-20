@@ -13,6 +13,7 @@
 #include <QMouseEvent>
 #include "findfriends.h"
 #include <QTreeWidgetItem>
+#include "chatwindow.h"
 
 namespace Ui {
 class MainInterface;
@@ -27,7 +28,7 @@ public:
     ~MainInterface();
 public slots:
     void ShowAccount(bool); //显示注册界面
-    void GetResultFromSer(QString type,int acc,QString nickname,QString signature,QString result,QString uData); //获取服务器返回的数据
+    void GetResultFromSer(int type,int acc,QString nickname,QString signature,QString result,QString uData,QString Msg,QString MsgType); //获取服务器返回的数据
     void initSystemIcon(); //初始化系统托盘
     void on_activatedSysTrayIcon(QSystemTrayIcon::ActivationReason reason); //点击托盘图标
     void mousePressEvent(QMouseEvent *e) override;
@@ -41,12 +42,15 @@ public slots:
     QTreeWidgetItem *CreateTreeWidgetItem(QString fenzuming, int acc = -1); //返回节点指针
     void InitFriRitBtnMenu(); //初始化好友列表右键菜单
     void SearchingAcc(QString acc); //查找账号信息
-    void AddFriendClosed(QString type,int acc,QString GpNa); //接收添加好友界面关闭信号
+    void AddFriendClosed(QString type,int acc,QString GpNa,QString yanzheng); //接收添加好友界面关闭信号
+    void Reconnection(bool onl); //掉线时重新连接上线
 signals:
     void StartConnecting(); //连接服务器
     void MainInterfaceClose(); //主窗口退出
     void SendReplyToFindFri(bool type); //将回应发送回查找好友界面
     void sendSearchFriMsgToSer(int acc); //向服务器发送查找好友信息
+    void sendFriAddMsgToSer(int myacc, int targetacc,QString type,QString yanzheng = ""); //发送好友申请信息给服务器
+    void ChangeOnlineSta(int acc, QString onl); //改变在线状态
 private slots:
     void on_CloseBtn_clicked();
 
@@ -72,8 +76,13 @@ private slots:
 
 private:
     Ui::MainInterface *ui;
+
+    //保存信息类型
+    enum InforType { Registration = 1125, FindPwd, LoginAcc, SearchFri, AddFri, ChangeOnlSta, SendMsg };
+
     TcpThread * m_mytcp; //网络连接类
     QThread * thread; //tcp线程
+    bool isLogined = false; //是否已登录到主界面
 
     /* 窗口跟随鼠标移动 */
     QPoint m_point; //记录鼠标点下位置
@@ -90,6 +99,7 @@ private:
     Account * m_accClass; //注册界面
     FindFriends * m_FindFri; //查找好友界面
     QList<AddFriend*> m_addfri; //添加好友界面
+    QHash<int,ChatWindow*> m_chatWindows; //聊天界面
 
     /* 登录用户信息 */
     int m_account; //账户
@@ -108,6 +118,8 @@ private:
     QMultiMap<QString,int> m_friends; //保存好友信息,Key为分组名，value为账号
     QHash<int,QString> m_frinicknames; //保存好友昵称
     QHash<int,QString> m_frisignatures; //保存好友个性签名
+
+    QMap<int,QString> m_waitFriReply; //存放添加好友的分组信息，等待好友同意后加入该分组
 
     /* 结点类型 */
     enum itemtype { engroup = 1001, enfriend };

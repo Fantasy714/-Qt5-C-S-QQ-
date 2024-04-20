@@ -18,6 +18,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
     account.cpp \
     addfriend.cpp \
+    chatwindow.cpp \
     findfriends.cpp \
     main.cpp \
     login.cpp \
@@ -27,6 +28,7 @@ SOURCES += \
 HEADERS += \
     account.h \
     addfriend.h \
+    chatwindow.h \
     findfriends.h \
     login.h \
     maininterface.h \
@@ -35,6 +37,7 @@ HEADERS += \
 FORMS += \
     account.ui \
     addfriend.ui \
+    chatwindow.ui \
     findfriends.ui \
     login.ui \
     maininterface.ui

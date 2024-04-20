@@ -26,7 +26,7 @@
    <string>QQ服务器</string>
   </property>
   <property name="windowIcon">
-   <iconset>
+   <iconset resource="../QQClient/lib.qrc">
     <normaloff>:/lib/QQ.png</normaloff>:/lib/QQ.png</iconset>
   </property>
   <property name="autoFillBackground">
@@ -34,21 +34,8 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
-    <item row="1" column="1">
-     <widget class="QPlainTextEdit" name="PlainTextEdit">
-      <property name="minimumSize">
-       <size>
-        <width>350</width>
-        <height>0</height>
-       </size>
-      </property>
-      <property name="maximumSize">
-       <size>
-        <width>350</width>
-        <height>16777215</height>
-       </size>
-      </property>
-     </widget>
+    <item row="0" column="0" rowspan="2">
+     <widget class="QTableView" name="TableView"/>
     </item>
     <item row="0" column="1">
      <widget class="QLabel" name="Label">
@@ -75,8 +62,21 @@
       </property>
      </widget>
     </item>
-    <item row="0" column="0" rowspan="2">
-     <widget class="QTableView" name="TableView"/>
+    <item row="1" column="1">
+     <widget class="QPlainTextEdit" name="PlainTextEdit">
+      <property name="minimumSize">
+       <size>
+        <width>350</width>
+        <height>0</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>350</width>
+        <height>16777215</height>
+       </size>
+      </property>
+     </widget>
     </item>
    </layout>
   </widget>

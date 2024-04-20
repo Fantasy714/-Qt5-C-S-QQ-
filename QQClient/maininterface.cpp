@@ -58,6 +58,8 @@ MainInterface::MainInterface(QWidget *parent) :
     m_mytcp = new TcpThread;
     connect(this,&MainInterface::MainInterfaceClose,m_mytcp,&TcpThread::GetClose);
     connect(m_mytcp,&TcpThread::isConnectingWithServer,m_log,&Login::isConnectingWithServer);
+    connect(m_mytcp,&TcpThread::isConnectingWithServer,this,&MainInterface::Reconnection);
+    connect(this,&MainInterface::ChangeOnlineSta,m_mytcp,&TcpThread::ChangeOnlineSta);
     connect(m_log,&Login::LoginClose,m_mytcp,&TcpThread::GetClose);
     connect(m_log,&Login::LoginToServer,m_mytcp,&TcpThread::LoginToServer);
     connect(m_mytcp,&TcpThread::sendResultToLogin,m_log,&Login::GetResultFromSer);
@@ -79,6 +81,7 @@ MainInterface::MainInterface(QWidget *parent) :
     connect(m_FindFri,&FindFriends::SearchingAcc,this,&MainInterface::SearchingAcc);
     connect(this,&MainInterface::SendReplyToFindFri,m_FindFri,&FindFriends::GetReply);
     connect(this,&MainInterface::sendSearchFriMsgToSer,m_mytcp,&TcpThread::sendSearchFriMsgToSer);
+    connect(this,&MainInterface::sendFriAddMsgToSer,m_mytcp,&TcpThread::sendFriAddMsgToSer);
 
     connect(ui->AddFriends,&QToolButton::clicked,this,&MainInterface::ShowFindFri);
     connect(ui->AddFriends_2,&QToolButton::clicked,this,&MainInterface::ShowFindFri);
@@ -86,9 +89,40 @@ MainInterface::MainInterface(QWidget *parent) :
 
 MainInterface::~MainInterface()
 {
+    //如果好友列表有改动则更新好友列表本地文件
+    if(FriIsChanged)
+    {
+        //获取好友信息
+        QJsonArray jsonArr;
+        for(auto groupN : m_groupNames)
+        {
+            QJsonObject obj;
+            obj.insert("name",groupN);
+            QJsonArray arr;
+            QList<int> FriAccs = m_friends.values(groupN);
+            for(auto fri : FriAccs)
+            {
+                QString fridata = QString::number(fri) + "@@" + m_frinicknames[fri] + "@@" + m_frisignatures[fri];
+                arr.append(fridata);
+            }
+            obj.insert("friends",arr);
+            jsonArr.append(obj);
+        }
+        QJsonDocument doc(jsonArr);
+
+        //存入本地用户文件中
+        QFile file(m_userpath + "/friends.json");
+        file.open(QFile::WriteOnly | QFile::Truncate);
+        file.write(doc.toJson());
+        file.close();
+    }
     thread->quit();
     thread->wait();
     thread->deleteLater();
+    for(auto chat : m_chatWindows)
+    {
+        delete chat;
+    }
     for(auto af : m_addfri)
     {
         delete af;
@@ -109,10 +143,12 @@ void MainInterface::ShowAccount(bool isfind)
     m_accClass->show();
 }
 
-void MainInterface::GetResultFromSer(QString type,int acc,QString nickname,QString signature,QString result,QString uData)
+void MainInterface::GetResultFromSer(int type,int acc,QString nickname,QString signature,QString result,QString uData,QString Msg,QString MsgType)
 {
-    if(type == "登录")
+    if(type == LoginAcc)
     {
+        //标记为已登录
+        isLogined = true;
         //获取用户信息
         m_account = acc;
         m_headshot = m_path + "/" + QString::number(m_account) + "/" + QString::number(m_account) + ".jpg";
@@ -147,7 +183,7 @@ void MainInterface::GetResultFromSer(QString type,int acc,QString nickname,QStri
         m_sysIcon->show();
         this->show();
     }
-    else if(type == "查找好友")
+    else if(type == SearchFri)
     {
         if(result == "查找失败")
         {
@@ -156,11 +192,53 @@ void MainInterface::GetResultFromSer(QString type,int acc,QString nickname,QStri
         }
         else
         {
-            QStringList friData = uData.split("@@");
-            AddFriend * af = new AddFriend(true,m_groupNames,friData);
+            AddFriend * af = new AddFriend(true,m_groupNames,uData.split("@@"));
             connect(af,&AddFriend::CloseAddFriend,this,&MainInterface::AddFriendClosed);
+            m_addfri.append(af);
             af->show();
         }
+    }
+    else if(type == AddFri)
+    {
+        if(result == "该好友已下线")
+        {
+            m_waitFriReply.remove(acc);
+            QMessageBox::information(this,"提示",QString("添加好友%1失败,该用户已下线").arg(acc));
+        }
+        else
+        {
+            if(MsgType == "发送好友申请")
+            {
+                qDebug() << "收到好友申请";
+                AddFriend * af = new AddFriend(false,m_groupNames,uData.split("@@"),Msg);
+                connect(af,&AddFriend::CloseAddFriend,this,&MainInterface::AddFriendClosed);
+                m_addfri.append(af);
+                af->show();
+            }
+        }
+    }
+    else if(type == SendMsg)
+    {
+        if(MsgType == "添加好友成功")
+        {
+            //好友列表已更改
+            FriIsChanged = true;
+            QString gn = m_waitFriReply[acc];
+            m_friends.insert(gn,acc);
+            m_frinicknames.insert(acc,nickname);
+            m_frisignatures.insert(acc,signature);
+            UpdateTreeWidget();
+        }
+
+        //若未创建聊天信息框则创建
+        ChatWindow * ctw = m_chatWindows.value(acc);
+        if(ctw == nullptr)
+        {
+            ctw = new ChatWindow(m_account,acc,nickname);
+            m_chatWindows.insert(acc,ctw);
+        }
+        ctw->FriendSendMsg(false,MsgType,Msg);
+        ctw->show();
     }
 }
 
@@ -350,6 +428,8 @@ QTreeWidgetItem *MainInterface::CreateTreeWidgetItem(QString fenzuming, int acc)
     {
         QTreeWidgetItem * item = new QTreeWidgetItem(enfriend);
 
+        item->setData(0,Qt::UserRole,acc);
+
         QPixmap pix = CreatePixmap(m_alluserspath + "/" + QString::number(acc) + ".jpg");
         item->setIcon(0,QIcon(pix));
 
@@ -399,16 +479,43 @@ void MainInterface::SearchingAcc(QString acc)
     emit sendSearchFriMsgToSer(searchAcc);
 }
 
-void MainInterface::AddFriendClosed(QString type,int acc,QString GpNa)
+void MainInterface::AddFriendClosed(QString type,int acc,QString GpNa,QString yanzheng)
 {
     if(type == "完成")
     {
-
+        //将该好友账号和分组信息记录下来
+        m_waitFriReply.insert(acc,GpNa);
+        emit sendFriAddMsgToSer(m_account,acc,"发送好友申请",yanzheng);
     }
-    //获得该好友界面指针并删除该指针
+    else if(type == "同意")
+    {
+        //将该好友账号和分组信息记录下来
+        m_waitFriReply.insert(acc,GpNa);
+        emit sendFriAddMsgToSer(m_account,acc,"同意好友申请");
+    }
+    qDebug() << "退出添加好友: " << acc << " 界面" ;
+    //获得该好友界面指针并退出该界面
     AddFriend * af = (AddFriend*)sender();
     m_addfri.removeOne(af);
-    delete af;
+    af->close();
+    af->deleteLater();
+}
+
+void MainInterface::Reconnection(bool onl)
+{
+    if(onl == false)
+    {
+        qDebug() << "与服务器断开连接";
+    }
+    else
+    {
+        qDebug() << "恢复连接";
+        //如果已登录到主界面则重新上线
+        if(isLogined)
+        {
+            emit ChangeOnlineSta(m_account,"在线");
+        }
+    }
 }
 
 void MainInterface::on_CloseBtn_clicked()
@@ -445,6 +552,14 @@ void MainInterface::onTreeWidgetDoubleClicked(QTreeWidgetItem *item)
     if(item->type() == enfriend)
     {
         qDebug() << "准备打开聊天界面";
+        int acc = item->data(0,Qt::UserRole).toInt();
+        ChatWindow * ctw = m_chatWindows.value(acc);
+        if(ctw == nullptr)
+        {
+            ctw = new ChatWindow(m_account,acc,m_frinicknames[acc]);
+            m_chatWindows.insert(acc,ctw);
+        }
+        ctw->show();
     }
 }
 
@@ -546,6 +661,8 @@ void MainInterface::RemoveGroup()
     {
     case QMessageBox::Ok:
         {
+            //好友列表已更改
+            FriIsChanged = true;
             //取出该分组下好友后删除该分组
             m_groupNames.removeOne(m_chagName);
             QList<int> moveList = m_friends.values(m_chagName);

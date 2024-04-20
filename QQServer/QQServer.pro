@@ -19,11 +19,13 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     qqsqldata.cpp \
+    sendthread.cpp \
     workthread.cpp
 
 HEADERS += \
     mainwindow.h \
     qqsqldata.h \
+    sendthread.h \
     workthread.h
 
 FORMS += \

@@ -15,17 +15,21 @@ class WorkThread : public QObject, public QRunnable
 public:
     explicit WorkThread(QReadWriteLock * mtx,QTcpSocket * tcp,QObject *parent = nullptr);
     void run() override;
-    void recvData(QByteArray,QByteArray); //解析收到的数据
-    void ReplyToJson(QString type,QString pwd,QString result = "", QString fileName = "", int acc = 0); //将信息转换为json
-    void SendReply(QByteArray jsondata,QString fileNames1); //发送回应给客户端
+    void ParseMsg(QByteArray,QByteArray); //解析收到的数据
+    void ReplyToJson(int type,QString pwd,QString result = "", QString fileName = "", int acc = 0, int targetacc = 0,QString MsgType = "",QString Msg = ""); //将信息转换为json
     void recvRegistered(int,QString); //查找注册结果
     void recvFind(int); //查找找回密码结果
     void CltLogin(int,QString); //客户端登录
     void SearchingFri(int acc); //查找好友
+    void CltAddFri(int acc,int targetacc,QString msgType,QString yanzheng); //处理好友申请信息
+    void CltChangeOnlSta(int acc,QString onlsta); //用户改变在线状态
 signals:
     void ThreadbackMsg(QString type,int account,QString msg,int target = 0); //从线程传消息回服务器
     void UserOnLine(int acc,quint16 sockport); //用户上线则发送该tcp套接字加入服务器在线用户哈希表中
+    void SendMsgToClt(quint16 port,int type,int acc,int targetacc,QByteArray jsondata,QString fileName,QString msgtype); //发送信息给客户端
 private:
+    //保存信息类型
+    enum InforType { Registration = 1125, FindPwd, LoginAcc, SearchFri, AddFri, ChangeOnlSta, SendMsg };
     enum UserMsg { ennickname = 0,ensignature,ensex,enage,enbirthday,enlocation,enblood_type,enwork,ensch_comp }; //保存用户资料标号
     Qqsqldata sql; //连接数据库
     QReadWriteLock * mutex; //读写锁
