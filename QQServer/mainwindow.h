@@ -31,8 +31,6 @@ public slots:
     void SendMsgToClt(quint16 port,int type,int acc,int targetacc,QByteArray jsondata,QString fileName,QString msgtype); //发送信息给客户端
 private:
     Ui::MainWindow *ui;
-    //保存信息类型
-    enum InforType { Registration = 1125, FindPwd, LoginAcc, SearchFri, AddFri, ChangeOnlSta, SendMsg };
     Qqsqldata * m_sqldata; //数据库
     unsigned short m_port = 9000; //服务器监听端口号
     QTcpServer * m_serv; //Tcp服务器

@@ -413,6 +413,7 @@ void Login::on_pushButton_clicked()
     //获取用户输入账号密码
     QString acc = ui->AccountLine->text();
     QString pwd = ui->PwdLine->text();
+    qDebug() << acc << pwd;
     //检查是否输入账号
     if(acc == "")
     {
@@ -446,6 +447,9 @@ void Login::on_comboBox_currentIndexChanged(int index)
 {
     if(index >= 0)
     {
+        //点击已存储账号后设置为非第一次登录
+        isFirstLogin = false;
+
         //qDebug() << index;
         QPixmap pix = CreatePixmap(m_Icons.at(index));
         ui->label->setPixmap(pix);

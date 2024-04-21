@@ -8,6 +8,9 @@
 #include <QFile>
 #include <QCoreApplication>
 
+//保存信息类型
+enum InforType { Registration = 1125, FindPwd, LoginAcc, SearchFri, AddFri, ChangeOnlSta, SendMsg };
+
 class TcpThread : public QObject
 {
     Q_OBJECT
@@ -18,7 +21,7 @@ public:
     void ReadMsgFromServer(); //接收服务器传来的数据
     void ParseMsg(QByteArray,QByteArray); //解析传回的数据
     void DisconnectFromServer(); //服务器断开连接
-    void MsgToJson(int type,int acc = -1,int targetacc = -1,QString Msg = "",QString yanzheng = ""); //将数据转化为Json数据
+    void MsgToJson(InforType type,int acc = -1,int targetacc = -1,QString Msg = "",QString yanzheng = ""); //将数据转化为Json数据
     void SendToServer(QByteArray jsondata, QString fileName); //发送数据给服务器
     void AutoConnect(); //自动重连
 public slots:
@@ -35,8 +38,6 @@ signals:
     void sendResultToMainInterFace(int type,int acc,QString nickname,QString signature,QString result,QString uData,QString Msg = "",QString MsgType = ""); //发送结果回登录界面
     void isConnectingWithServer(bool onl); //连接成功时发出true,服务器断开连接发送false
 private:
-    //保存信息类型
-    enum InforType { Registration = 1125, FindPwd, LoginAcc, SearchFri, AddFri, ChangeOnlSta, SendMsg };
     QTcpSocket * m_tcp = nullptr; //tcp套接字
     unsigned short port = 9000; //端口号
     QString address = "127.0.0.1"; //ip地址

@@ -1,7 +1,10 @@
 #include "chatwindow.h"
 #include "ui_chatwindow.h"
-#include <QPainter>
 #include <QLabel>
+#include <QDebug>
+#include <QMessageBox>
+
+#define Margin 5
 
 ChatWindow::ChatWindow(int acc,int targetAcc,QString nickN,QWidget *parent) :
     QWidget(parent),
@@ -21,17 +24,27 @@ ChatWindow::ChatWindow(int acc,int targetAcc,QString nickN,QWidget *parent) :
     //设置无边框窗口
     setWindowFlag(Qt::FramelessWindowHint);
 
+    //设置鼠标追踪
+    this->setMouseTracking(true);
+
+    //用好友的头像和昵称作窗口的图标和名称
+    QPixmap pix;
+    pix = CreatePixmap(m_FriHeadShot);
+    //设置窗口图标
+    setWindowIcon(QIcon(pix));
+    setWindowTitle(m_nickname);
+
     //设置好友的昵称
     ui->FriName->setText(m_nickname);
 
-    ui->splitter->setStretchFactor(1,1);
-
-    //设置间距
-    ui->ChatList->setSpacing(8);
+    //禁止隐藏聊天框和输入框
+    int index1 = ui->splitter->indexOf(ui->widget);
+    int index2 = ui->splitter->indexOf(ui->widget_2);
+    ui->splitter->setCollapsible(index1,false);
+    ui->splitter->setCollapsible(index2,false);
 \
     //绑定最大小化及关闭按钮的信号槽
     connect(ui->MiniBtn,&QToolButton::clicked,this,&ChatWindow::showMinimized);
-    connect(ui->BigBtn,&QToolButton::clicked,this,&ChatWindow::showMaximized);
     connect(ui->CloseBtn,&QToolButton::clicked,this,&ChatWindow::hide);
     connect(ui->CloseBtn_2,&QPushButton::clicked,this,&ChatWindow::hide);
 }
@@ -45,24 +58,51 @@ void ChatWindow::mousePressEvent(QMouseEvent *e)
 {
     if(e->button() == Qt::LeftButton)
     {
-        isMainWidget = true;
-        m_point = e->globalPos() - pos();
+        isPressed = true;
+        //获取鼠标点下位置相对于窗口左上角的偏移量
+        m_point = e->globalPos() - frameGeometry().topLeft();
     }
+    e->accept();
 }
 
 void ChatWindow::mouseMoveEvent(QMouseEvent *e)
 {
-    if(e->buttons() & Qt::LeftButton && isMainWidget)
+    //鼠标未按下则设置鼠标状态
+    if(!isPressed)
     {
-        move(e->globalPos() - m_point);
+        qDebug() << e->pos();
+        ChangeCurSor(e->pos());
     }
+    else
+    {
+
+    }
+    e->accept();
 }
 
 void ChatWindow::mouseReleaseEvent(QMouseEvent *event)
 {
     //释放时将bool值恢复false
-    isMainWidget = false;
+    isPressed = false;
     event->accept();
+}
+
+void ChatWindow::mouseDoubleClickEvent(QMouseEvent *event)
+{
+    QPoint NowPos = event->pos();
+
+    //若双击位置位于标题栏内则则最大化或正常化
+    if(NowPos.y() < 50)
+    {
+        on_BigBtn_clicked();
+    }
+    event->accept();
+}
+
+void ChatWindow::paintEvent(QPaintEvent *event)
+{
+    QPainter painter(this);
+    painter.fillRect(this->rect().)
 }
 
 QPixmap ChatWindow::CreatePixmap(QString picPath)
@@ -90,80 +130,201 @@ QPixmap ChatWindow::CreatePixmap(QString picPath)
     return pix;
 }
 
-QWidget* ChatWindow::CreateWidget(bool isMe,QString MsgType, QString Msg)
+int ChatWindow::returnItemHeight(MsgType MsgType,int wLgh)
 {
-    QHBoxLayout * layout = new QHBoxLayout;
-    QLabel * MsgLab = new QLabel;
-    QWidget * widget = new QWidget(this);
-    //设置时间控件
-    if(MsgType == "时间")
+    //判断信息类型
+    switch(MsgType)
     {
-        MsgLab->setText(Msg);
-        MsgLab->setStyleSheet("QLabel{color:rgb(127,127,127);font-size:11px;}");
-        layout->setAlignment(MsgLab,Qt::AlignCenter);
-        widget->setLayout(layout);
-        return widget;
-    }
-
-    QPixmap pix;
-    QLabel * Hs = new QLabel;
-    //设置头像及布局方向
-    if(isMe)
+    case itsTime:
+        return 20;
+    case itsMsg:
     {
-        //若是自己的信息则从右往左排列
-        layout->setDirection(QHBoxLayout::RightToLeft);
-        pix = CreatePixmap(m_MyHeadShot);
-    }
-    else
-    {
-        //若是好友的信息则从左往右排列
-        layout->setDirection(QHBoxLayout::LeftToRight);
-        pix = CreatePixmap(m_FriHeadShot);
-    }
-    pix = pix.scaled(20,20);
-    Hs->setPixmap(pix);
-
-    //设置信息及气泡
-    if(MsgType == "普通消息" || MsgType == "添加好友成功")
-    {
-        MsgLab->setText(Msg);
-        if(isMe)
+        //根据发送信息的字数判断item的高度
+        if(wLgh < 19)
         {
-            MsgLab->setStyleSheet("QLabel{color:white;font-size:13px;background-color:rgb(18,183,245);border-style:none;border-radius:5px;}");
+            return 60;
+        }
+        else if(wLgh < 57)
+        {
+            return 100;
+        }
+        else if(wLgh < 133)
+        {
+            return 130;
+        }
+        else if(wLgh < 300)
+        {
+            return 150;
+        }
+        else if(wLgh < 380)
+        {
+            return 180;
+        }
+        else if(wLgh < 520)
+        {
+            return 230;
         }
         else
         {
-            MsgLab->setStyleSheet("QLabel{color:black;font-size:13px;background-color:rgb(229,229,229);border-style:none;border-radius:5px;}");
+            return -1;
         }
     }
+    case itsPicture:
+        break;
+    case itsFile:
+        break;
+    default:
+        break;
+    }
+}
 
-    layout->addWidget(Hs);
-    layout->addWidget(MsgLab);
+void ChatWindow::ChangeCurSor(const QPoint &p)
+{
+    //获取当前鼠标在窗口中的位置
+    int x = p.x();
+    int y = p.y();
 
+    //获取当前位置与窗口最右侧及最下方的距离
+    int fromRight = frameGeometry().width() - x;
+    int fromBottom = frameGeometry().height() - y;
+
+    //若当前位置x,y坐标都小于Margin距离则在左上角
+    if(x < Margin && y < Margin)
+    {
+        m_loc = Top_Left;
+        setCursor(QCursor(Qt::SizeFDiagCursor));
+    }
+}
+
+QWidget *ChatWindow::CreateWidget(bool isMe, MsgType MsgType, QString Msg)
+{
+    QWidget * widget = new QWidget(this);
+    QHBoxLayout * layout = new QHBoxLayout;
+    switch(MsgType)
+    {
+    case itsTime:
+    {
+        QLabel * timeLab = new QLabel;
+        timeLab->setText(Msg);
+        timeLab->setStyleSheet("QLabel{color:rgb(127,127,127);}");
+        //设置高和宽尽量小
+        timeLab->setSizePolicy(QSizePolicy::Minimum,QSizePolicy::Minimum);
+
+        //设置四周边距
+        layout->setContentsMargins(0,5,0,0);
+
+        //添加时间label
+        layout->addStretch();
+        layout->addWidget(timeLab);
+        layout->addStretch();
+        break;
+    }
+    case itsMsg:
+    {
+        //头像Label
+        QLabel * HeadS = new QLabel;
+        QPixmap pix;
+        //判断是自己的头像还是对方的
+        if(isMe)
+        {
+            pix = CreatePixmap(m_MyHeadShot).scaled(40,40);
+        }
+        else
+        {
+            pix = CreatePixmap(m_FriHeadShot).scaled(40,40);
+        }
+        HeadS->setPixmap(pix);
+
+        //信息Label
+        QLabel * MsgLab = new QLabel;
+        MsgLab->setText(Msg);
+        //设置高和宽尽量小
+        MsgLab->setSizePolicy(QSizePolicy::Maximum,QSizePolicy::Maximum);
+        //自动换行
+        MsgLab->setWordWrap(true);
+        //判断是好友还是自己设置对应的label样式
+        if(isMe)
+        {
+            MsgLab->setStyleSheet("QLabel{background-color:rgb(18,183,245);color:white;padding-top:10px;padding-bottom:10px;"
+                                  "padding-left:8px;padding-right:8px;border-style:none;border-radius:8px;}");
+            //好友信息在左边，自己在右边
+            layout->setDirection(QHBoxLayout::RightToLeft);
+        }
+        else
+        {
+            MsgLab->setStyleSheet("QLabel{background-color:rgb(229,229,229);color:black;padding-top:10px;padding-bottom:10px;"
+                                  "padding-left:8px;padding-right:8px;border-style:none;border-radius:8px;}");
+            layout->setDirection(QHBoxLayout::LeftToRight);
+        }
+
+        //设置四周边距
+        layout->setContentsMargins(10,5,10,5);
+
+        layout->addWidget(HeadS);
+        layout->addWidget(MsgLab);
+        layout->addStretch();
+    }
+    }
     widget->setLayout(layout);
     return widget;
 }
 
-void ChatWindow::FriendSendMsg(bool isMe,QString MsgType, QString Msg)
-{
-    //若为第一条信息则设置当前时间
-    QString NowTime;
-    if(LastMsgTime.secsTo(QDateTime::currentDateTime()) >= 300)
-    {
-        LastMsgTime = QDateTime::currentDateTime();
-        NowTime = LastMsgTime.toString("yyyy-mm-dd hh:mm:ss");
 
-        QWidget * widgetT = CreateWidget(false,"时间",NowTime);
-        QListWidgetItem * itemT = new QListWidgetItem(ui->ChatList);
-        ui->ChatList->setItemWidget(itemT,widgetT);
+void ChatWindow::FriendSendMsg(bool isMe,MsgType MsgType, QString Msg)
+{
+    QDateTime curTime = QDateTime::currentDateTime();
+    //消息间隔大于五分钟则再次显示时间
+    if(LastMsgTime.secsTo(curTime) > 300)
+    {
+        //更新最后一次消息的时间
+        LastMsgTime = curTime;
+
+        //设置item高度
+        QListWidgetItem * TimeItem = new QListWidgetItem(ui->ChatList);
+        QSize TSize = TimeItem->sizeHint();
+        TimeItem->setSizeHint(QSize(TSize.width(),returnItemHeight(itsTime)));
+
+        //取出QString格式时间
+        QString TimeStr = curTime.toString("yyyy/m/d h:mm:ss");
+        QWidget * TimeWgt = CreateWidget(true,itsTime,TimeStr);
+
+        //将widget添加入聊天框中
+        ui->ChatList->setItemWidget(TimeItem,TimeWgt);
     }
-    QWidget * widget = CreateWidget(isMe,MsgType,Msg);
+
     QListWidgetItem * item = new QListWidgetItem(ui->ChatList);
+    QSize size = item->sizeHint();
+    item->setSizeHint(QSize(size.width(),returnItemHeight(MsgType,Msg.length())));
+
+    QWidget * widget = CreateWidget(isMe,MsgType,Msg);
     ui->ChatList->setItemWidget(item,widget);
 }
 
 void ChatWindow::on_SendBtn_clicked()
 {
-    FriendSendMsg(true,"普通信息",ui->textEdit->toPlainText());
+    QString SendMsg = ui->textEdit->toPlainText();
+    if(SendMsg == "")
+    {
+        QMessageBox::information(this,"提示","请输入要发送的信息");
+        return;
+    }
+    FriendSendMsg(true,itsMsg,SendMsg);
     ui->textEdit->clear();
+}
+
+void ChatWindow::on_BigBtn_clicked()
+{
+    //未最大化则最大化并更改图标
+    if(!isMaxed)
+    {
+        isMaxed = true;
+        ui->BigBtn->setIcon(QPixmap(":/lib/BigToNormal.png"));
+        this->showMaximized();
+    }
+    else
+    {
+        isMaxed = false;
+        ui->BigBtn->setIcon(QPixmap(":/lib/Big.png"));
+        this->showNormal();
+    }
 }

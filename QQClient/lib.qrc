@@ -31,5 +31,6 @@
         <file>lib/picIcon.png</file>
         <file>lib/fileIcon.png</file>
         <file>lib/biaoqing.png</file>
+        <file>lib/BigToNormal.png</file>
     </qresource>
 </RCC>

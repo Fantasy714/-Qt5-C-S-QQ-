@@ -77,9 +77,6 @@ private slots:
 private:
     Ui::MainInterface *ui;
 
-    //保存信息类型
-    enum InforType { Registration = 1125, FindPwd, LoginAcc, SearchFri, AddFri, ChangeOnlSta, SendMsg };
-
     TcpThread * m_mytcp; //网络连接类
     QThread * thread; //tcp线程
     bool isLogined = false; //是否已登录到主界面

@@ -413,7 +413,7 @@ void TcpThread::DisconnectFromServer()
     m_timer->start(3000);
 }
 
-void TcpThread::MsgToJson(int type,int acc,int targetacc,QString Msg,QString yanzheng)
+void TcpThread::MsgToJson(InforType type,int acc,int targetacc,QString Msg,QString yanzheng)
 {
     QString fileName = "";
     QJsonObject obj;

@@ -6,6 +6,24 @@
 #include <QCoreApplication>
 #include <QListWidgetItem>
 #include <QDateTime>
+#include <QPainter>
+#include <QGraphicsDropShadowEffect>
+
+//信息类型
+enum MsgType { itsTime = 500, itsMsg, itsPicture, itsFile };
+
+//记录鼠标位置
+enum Location {
+    Top_Left,
+    Top,
+    Top_Right,
+    Right,
+    Bottom_Right,
+    Bottom,
+    Bottom_Left,
+    Left,
+    Center
+};
 
 namespace Ui {
 class ChatWindow;
@@ -18,21 +36,30 @@ class ChatWindow : public QWidget
 public:
     explicit ChatWindow(int acc,int targetAcc,QString nickN,QWidget *parent = nullptr);
     ~ChatWindow();
-    void FriendSendMsg(bool isMe,QString MsgType,QString Msg); //添加消息进消息框中
+    void FriendSendMsg(bool isMe,MsgType MsgType,QString Msg); //添加消息进消息框中
 protected:
     void mousePressEvent(QMouseEvent *e) override;
     void mouseMoveEvent(QMouseEvent *e) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
+    void mouseDoubleClickEvent(QMouseEvent *event) override;
+    void paintEvent(QPaintEvent *event) override;
     QPixmap CreatePixmap(QString picPath); //返回圆形头像
-    QWidget* CreateWidget(bool isMe,QString MsgType, QString Msg); //创建消息Widget
+    QWidget* CreateWidget(bool isMe,MsgType MsgType,QString Msg); //创建自定义item
+    int returnItemHeight(MsgType MsgType,int wLgh = -1); //返回item高度
+    void ChangeCurSor(const QPoint &p); //更改鼠标样式
 
 private slots:
     void on_SendBtn_clicked();
 
+    void on_BigBtn_clicked();
+
 private:
     Ui::ChatWindow *ui;
-    bool isMainWidget = false; //记录点下时是否在主窗口上而非内部控件上
+    bool isPressed = false; //记录鼠标是否按下
     QPoint m_point; //记录鼠标点下位置
+    Location m_loc; //记录鼠标当前位置
+
+    bool isMaxed = false; //是最大化状态，默认不是
 
     int m_account; //自己的账号
     int m_targetAcc; //好友账号

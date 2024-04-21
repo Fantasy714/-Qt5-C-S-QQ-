@@ -5,6 +5,9 @@
 #include <QMouseEvent>
 #include <QCoreApplication>
 
+//用户资料编号
+enum umsg { enacc = 0,ennickname,ensex,enage,enlocation };
+
 namespace Ui {
 class AddFriend;
 }
@@ -36,7 +39,6 @@ private:
 
     QString m_alluserspath = QCoreApplication::applicationDirPath() + "/userdata/allusers"; //存放好友头像文件夹位置
 
-    enum umsg { enacc = 0,ennickname,ensex,enage,enlocation };
     /* 想添加的用户信息 */
     int m_acc; //账号
     QString m_nickname; //昵称

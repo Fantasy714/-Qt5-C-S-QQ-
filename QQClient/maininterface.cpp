@@ -43,6 +43,9 @@ MainInterface::MainInterface(QWidget *parent) :
     //设置无边框窗口
     setWindowFlags(Qt::FramelessWindowHint | Qt::SplashScreen | Qt::WindowStaysOnTopHint);
 
+    //设置追踪鼠标
+    setMouseTracking(true);
+
     //添加搜索图标
     QAction * searchAc = new QAction(ui->SearchEdit);
     searchAc->setIcon(QIcon(":/lib/search.png"));
@@ -237,7 +240,7 @@ void MainInterface::GetResultFromSer(int type,int acc,QString nickname,QString s
             ctw = new ChatWindow(m_account,acc,nickname);
             m_chatWindows.insert(acc,ctw);
         }
-        ctw->FriendSendMsg(false,MsgType,Msg);
+        ctw->FriendSendMsg(false,itsMsg,Msg);
         ctw->show();
     }
 }

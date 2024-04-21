@@ -9,6 +9,11 @@
 #include <QCoreApplication>
 #include <QDir>
 
+//保存信息类型
+enum InforType { Registration = 1125, FindPwd, LoginAcc, SearchFri, AddFri, ChangeOnlSta, SendMsg };
+//保存用户资料标号
+enum UserMsg { ennickname = 0,ensignature,ensex,enage,enbirthday,enlocation,enblood_type,enwork,ensch_comp };
+
 class WorkThread : public QObject, public QRunnable
 {
     Q_OBJECT
@@ -28,9 +33,6 @@ signals:
     void UserOnLine(int acc,quint16 sockport); //用户上线则发送该tcp套接字加入服务器在线用户哈希表中
     void SendMsgToClt(quint16 port,int type,int acc,int targetacc,QByteArray jsondata,QString fileName,QString msgtype); //发送信息给客户端
 private:
-    //保存信息类型
-    enum InforType { Registration = 1125, FindPwd, LoginAcc, SearchFri, AddFri, ChangeOnlSta, SendMsg };
-    enum UserMsg { ennickname = 0,ensignature,ensex,enage,enbirthday,enlocation,enblood_type,enwork,ensch_comp }; //保存用户资料标号
     Qqsqldata sql; //连接数据库
     QReadWriteLock * mutex; //读写锁
     QTcpSocket * m_tcp; //tcp套接字
