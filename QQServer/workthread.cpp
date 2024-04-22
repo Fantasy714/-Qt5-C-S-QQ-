@@ -129,6 +129,16 @@ void WorkThread::ParseMsg(QByteArray data,QByteArray filedata)
         CltChangeOnlSta(account,onlsta);
         break;
     }
+    case SendMsg:
+    {
+        qDebug() << "转发信息";
+        int acc = obj.value("account").toInt();
+        int targetAcc = obj.value("targetacc").toInt();
+        QString msgType = obj.value("msgtype").toString();
+        QString msg = obj.value("msg").toString();
+        ForwardInformation(acc,targetAcc,msgType,msg);
+        break;
+    }
     }
 }
 
@@ -226,6 +236,11 @@ void WorkThread::ReplyToJson(int type, QString pwd, QString result,QString fileN
                 obj.insert("userData",uData);
                 obj.insert("msgtype",msgtype);
                 obj.insert("yanzheng",Msg);
+            }
+            else if(msgtype == "成功删除好友")
+            {
+                obj.insert("friacc",acc);
+                obj.insert("msgtype",msgtype);
             }
         }
         break;
@@ -376,7 +391,7 @@ void WorkThread::CltAddFri(int acc, int targetacc, QString msgType,QString yanzh
     QString res = sql.OnLineSta(targetacc);
     if(res == "离线")
     {
-        qDebug() << "添加好友失败，该账号已下线";
+        qDebug() << "添加/删除好友失败，该账号已下线";
         ReplyToJson(AddFri,"","该好友已下线","",-1,targetacc);
         return;
     }
@@ -403,6 +418,14 @@ void WorkThread::CltAddFri(int acc, int targetacc, QString msgType,QString yanzh
         uD = m_userDatas.at(ennickname) + "@@" + m_userDatas.at(ensignature);
         ReplyToJson(SendMsg,"",uD,"",targetacc,acc,"添加好友成功","我们已经是好友啦，一起来聊天吧！");
     }
+    else if(msgType == "删除好友")
+    {
+        //在数据库中更新这两个用户的好友列表
+        sql.DelFriend(acc,targetacc);
+
+        ReplyToJson(AddFri,"","","",acc,targetacc,"成功删除好友");
+        ReplyToJson(AddFri,"","","",targetacc,acc,"成功删除好友");
+    }
 }
 
 void WorkThread::CltChangeOnlSta(int acc, QString onlsta)
@@ -416,4 +439,9 @@ void WorkThread::CltChangeOnlSta(int acc, QString onlsta)
         ThreadbackMsg("用户掉线重连",acc,"");
     }
     sql.ChangeOnlineSta(acc,onlsta);
+}
+
+void WorkThread::ForwardInformation(int acc, int targetacc, QString msgType, QString msg)
+{
+    ReplyToJson(SendMsg,"","","",acc,targetacc,msgType,msg);
 }

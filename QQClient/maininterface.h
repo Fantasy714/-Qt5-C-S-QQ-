@@ -1,7 +1,7 @@
 #ifndef MAININTERFACE_H
 #define MAININTERFACE_H
 
-#include <QMainWindow>
+#include <QWidget>
 #include "login.h"
 #include "account.h"
 #include "tcpthread.h"
@@ -14,12 +14,14 @@
 #include "findfriends.h"
 #include <QTreeWidgetItem>
 #include "chatwindow.h"
+#include <QPainter>
+#include <QGraphicsDropShadowEffect>
 
 namespace Ui {
 class MainInterface;
 }
 
-class MainInterface : public QMainWindow
+class MainInterface : public QWidget
 {
     Q_OBJECT
 
@@ -31,19 +33,26 @@ public slots:
     void GetResultFromSer(int type,int acc,QString nickname,QString signature,QString result,QString uData,QString Msg,QString MsgType); //获取服务器返回的数据
     void initSystemIcon(); //初始化系统托盘
     void on_activatedSysTrayIcon(QSystemTrayIcon::ActivationReason reason); //点击托盘图标
-    void mousePressEvent(QMouseEvent *e) override;
-    void mouseMoveEvent(QMouseEvent *e) override;
-    void mouseReleaseEvent(QMouseEvent *event) override;
     void ShowFindFri(); //显示查找好友窗口
-    QPixmap CreatePixmap(QString picPath); //返回圆形头像
     void GetFriendsData(); //从本地数据文件中获取好友列表信息
     void InitTreeWidget(); //初始化好友列表TreeWidget
     void UpdateTreeWidget(); //更新好友列表TreeWidget
-    QTreeWidgetItem *CreateTreeWidgetItem(QString fenzuming, int acc = -1); //返回节点指针
     void InitFriRitBtnMenu(); //初始化好友列表右键菜单
     void SearchingAcc(QString acc); //查找账号信息
     void AddFriendClosed(QString type,int acc,QString GpNa,QString yanzheng); //接收添加好友界面关闭信号
     void Reconnection(bool onl); //掉线时重新连接上线
+    void SendMsgToFri(int,MsgType,QString); //发送信息给好友
+    void DelFri(); //删除好友
+    ChatWindow* showFriChatWindow(int acc); //显示好友聊天窗口
+protected:
+    void initShadow(); //初始化窗口边框阴影
+    void paintEvent(QPaintEvent *event) override;
+    void mousePressEvent(QMouseEvent *e) override;
+    void mouseMoveEvent(QMouseEvent *e) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
+    QTreeWidgetItem *CreateTreeWidgetItem(QString fenzuming, int acc = -1); //返回节点指针
+    QPixmap CreatePixmap(QString picPath); //返回圆形头像
+    void ChangeCurSor(const QPoint &p); //更改鼠标样式
 signals:
     void StartConnecting(); //连接服务器
     void MainInterfaceClose(); //主窗口退出
@@ -51,6 +60,7 @@ signals:
     void sendSearchFriMsgToSer(int acc); //向服务器发送查找好友信息
     void sendFriAddMsgToSer(int myacc, int targetacc,QString type,QString yanzheng = ""); //发送好友申请信息给服务器
     void ChangeOnlineSta(int acc, QString onl); //改变在线状态
+    void sendSmsToFri(int acc,int targetAcc,QString MsgType,QString Msg); //向好友发送信息
 private slots:
     void on_CloseBtn_clicked();
 
@@ -81,9 +91,11 @@ private:
     QThread * thread; //tcp线程
     bool isLogined = false; //是否已登录到主界面
 
-    /* 窗口跟随鼠标移动 */
+    /* 窗口跟随鼠标移动拖动 */
     QPoint m_point; //记录鼠标点下位置
-    bool isMainWidget = false; //记录点下时是否在主窗口上而非内部控件上
+    bool isPressed = false; //记录是否点下鼠标
+    Location m_loc; //记录鼠标当前位置
+    int TabWidgetWidth; //记录TabWidget的宽度
 
     /* 用户文件操作 */
     QString m_path = QCoreApplication::applicationDirPath() + "/userdata"; //用户数据文件夹位置
@@ -137,6 +149,9 @@ private:
     QString m_chagName; //要更改的分组名
     bool isaddgrp; //是否是添加好友分组
     bool FriIsChanged = false; //好友列表是否已更改
+
+    /* 保存选择的好友item */
+    QTreeWidgetItem * m_friItem = nullptr; //选择的好友item
 };
 
 #endif // MAININTERFACE_H

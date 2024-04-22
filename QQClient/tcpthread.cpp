@@ -66,12 +66,17 @@ void TcpThread::sendSearchFriMsgToSer(int acc)
 void TcpThread::sendFriAddMsgToSer(int myacc, int targetacc, QString type,QString yanzheng)
 {
     qDebug() << "正在发送好友申请信息";
-    MsgToJson(AddFri,myacc,targetacc,type,yanzheng);
+    MsgToJson(AddFri,myacc,targetacc,yanzheng,type);
 }
 
 void TcpThread::ChangeOnlineSta(int acc, QString onl)
 {
     MsgToJson(ChangeOnlSta,acc,-1,onl);
+}
+
+void TcpThread::sendSmsToFri(int acc, int targetAcc, QString MsgType, QString Msg)
+{
+    MsgToJson(SendMsg,acc,targetAcc,Msg,MsgType);
 }
 
 void TcpThread::connectToServer()
@@ -371,6 +376,12 @@ void TcpThread::ParseMsg(QByteArray data,QByteArray filedata)
                 QString yanzheng = obj.value("yanzheng").toString();
                 emit sendResultToMainInterFace(type,-1,"","","",uD,yanzheng,msgType);
             }
+            else if(msgType == "成功删除好友")
+            {
+                int friacc = obj.value("friacc").toInt();
+                qDebug() << "删除好友" << friacc;
+                emit sendResultToMainInterFace(type,friacc,"","","","","",msgType);
+            }
         }
         break;
     }
@@ -393,6 +404,11 @@ void TcpThread::ParseMsg(QByteArray data,QByteArray filedata)
 
             sendResultToMainInterFace(type,acc,nickname,signature,"","",msg,msgType);
         }
+        else
+        {
+            qDebug() << acc;
+            sendResultToMainInterFace(type,acc,"","","","",msg,msgType);
+        }
         break;
     }
     }
@@ -413,7 +429,7 @@ void TcpThread::DisconnectFromServer()
     m_timer->start(3000);
 }
 
-void TcpThread::MsgToJson(InforType type,int acc,int targetacc,QString Msg,QString yanzheng)
+void TcpThread::MsgToJson(InforType type,int acc,int targetacc,QString Msg,QString MsgType)
 {
     QString fileName = "";
     QJsonObject obj;
@@ -452,8 +468,8 @@ void TcpThread::MsgToJson(InforType type,int acc,int targetacc,QString Msg,QStri
         qDebug() << "发送好友申请信息";
         obj.insert("account",acc);
         obj.insert("targetaccount",targetacc);
-        obj.insert("msgtype",Msg);
-        obj.insert("yanzheng",yanzheng);
+        obj.insert("msgtype",MsgType);
+        obj.insert("yanzheng",Msg);
         break;
     }
     case ChangeOnlSta:
@@ -461,6 +477,15 @@ void TcpThread::MsgToJson(InforType type,int acc,int targetacc,QString Msg,QStri
         qDebug() << "改变在线状态";
         obj.insert("account",acc);
         obj.insert("onlinestatus",Msg);
+        break;
+    }
+    case SendMsg:
+    {
+        qDebug() << "发送信息";
+        obj.insert("account",acc);
+        obj.insert("targetacc",targetacc);
+        obj.insert("msgtype",MsgType);
+        obj.insert("msg",Msg);
         break;
     }
     }

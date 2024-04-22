@@ -165,6 +165,73 @@ bool Qqsqldata::AddFriend(int acc1, int acc2)
     }
 }
 
+bool Qqsqldata::DelFriend(int acc1, int acc2)
+{
+    //更新第一个用户的好友列表
+    result.exec(QString("select friends from qqfriends where account = %1;").arg(acc1));
+    if(!result.next())
+    {
+        qDebug() << "acc1查找好友失败!";
+        return false;
+    }
+
+    //获取好友列表字符串
+    QString fris1 = result.value("friends").toString();
+    //获取每个好友的账号
+    QStringList friends1 = fris1.split(",");
+    //删除好友的账号
+    friends1.removeOne(QString::number(acc2));
+
+    //清空并重新将其他好友加入字符串
+    fris1.clear();
+    for(auto f : friends1)
+    {
+        fris1.append(f);
+        fris1.append(",");
+    }
+
+    //更新
+    bool res = result.exec(QString("update qqfriends set friends = '%1' where account = %2;").arg(fris1).arg(acc1));
+    if(res == false)
+    {
+        qDebug() << "更改好友列表失败";
+        return false;
+    }
+
+
+
+    //更新第二个用户的好友列表
+    result.exec(QString("select friends from qqfriends where account = %1;").arg(acc2));
+    if(!result.next())
+    {
+        qDebug() << "acc2查找好友失败!";
+        return false;
+    }
+
+    //获取好友列表字符串
+    QString fris2 = result.value("friends").toString();
+    //获取每个好友的账号
+    QStringList friends2 = fris2.split(",");
+    //删除好友的账号
+    friends2.removeOne(QString::number(acc1));
+
+    //清空并重新将其他好友加入字符串
+    fris2.clear();
+    for(auto f : friends2)
+    {
+        fris2.append(f);
+        fris2.append(",");
+    }
+
+    //更新
+    res = result.exec(QString("update qqfriends set friends = '%1' where account = %2;").arg(fris2).arg(acc2));
+    if(res == false)
+    {
+        qDebug() << "更改好友列表失败";
+        return false;
+    }
+}
+
 QVector<int> Qqsqldata::ReturnFris(int acc)
 {
     result.exec(QString("select friends from qqfriends where account = %1;").arg(acc));

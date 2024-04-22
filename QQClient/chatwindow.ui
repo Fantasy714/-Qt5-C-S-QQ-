@@ -35,16 +35,16 @@ QToolButton:pressed
     <number>0</number>
    </property>
    <property name="leftMargin">
-    <number>5</number>
+    <number>15</number>
    </property>
    <property name="topMargin">
-    <number>0</number>
+    <number>15</number>
    </property>
    <property name="rightMargin">
-    <number>5</number>
+    <number>15</number>
    </property>
    <property name="bottomMargin">
-    <number>5</number>
+    <number>15</number>
    </property>
    <item>
     <widget class="QWidget" name="widget_3" native="true">
@@ -159,11 +159,11 @@ QPushButton:hover
         <property name="styleSheet">
          <string notr="true">QToolButton:hover
 {
-	background-color:rgb(245, 245, 245);
+	background-color:rgba(200, 200, 200,85);
 }
 QToolButton:pressed
 {
-	background-color:rgb(245, 245, 245);
+	background-color:rgba(220,220,220,85);
 }
 </string>
         </property>
@@ -205,11 +205,11 @@ QToolButton:pressed
         <property name="styleSheet">
          <string notr="true">QToolButton:hover
 {
-	background-color:rgb(245, 245, 245);
+	background-color:rgba(200, 200, 200,85);
 }
 QToolButton:pressed
 {
-	background-color:rgb(245, 245, 245);
+	background-color:rgba(220,220,220,85);
 }
 </string>
         </property>
@@ -279,6 +279,9 @@ QToolButton:pressed
    </item>
    <item>
     <widget class="QSplitter" name="splitter">
+     <property name="cursor">
+      <cursorShape>ArrowCursor</cursorShape>
+     </property>
      <property name="contextMenuPolicy">
       <enum>Qt::DefaultContextMenu</enum>
      </property>
@@ -614,7 +617,7 @@ QToolButton:pressed
            <number>0</number>
           </property>
           <property name="rightMargin">
-           <number>0</number>
+           <number>10</number>
           </property>
           <property name="bottomMargin">
            <number>0</number>
@@ -645,6 +648,9 @@ QToolButton:pressed
               <width>65</width>
               <height>30</height>
              </size>
+            </property>
+            <property name="cursor">
+             <cursorShape>ArrowCursor</cursorShape>
             </property>
             <property name="focusPolicy">
              <enum>Qt::ClickFocus</enum>
@@ -699,6 +705,9 @@ QPushButton:pressed
               <width>65</width>
               <height>30</height>
              </size>
+            </property>
+            <property name="cursor">
+             <cursorShape>ArrowCursor</cursorShape>
             </property>
             <property name="focusPolicy">
              <enum>Qt::ClickFocus</enum>

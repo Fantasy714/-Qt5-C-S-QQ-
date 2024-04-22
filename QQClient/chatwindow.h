@@ -38,15 +38,18 @@ public:
     ~ChatWindow();
     void FriendSendMsg(bool isMe,MsgType MsgType,QString Msg); //添加消息进消息框中
 protected:
+    void initShadow(); //初始化窗口边框阴影
+    void paintEvent(QPaintEvent *event) override;
     void mousePressEvent(QMouseEvent *e) override;
     void mouseMoveEvent(QMouseEvent *e) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
     void mouseDoubleClickEvent(QMouseEvent *event) override;
-    void paintEvent(QPaintEvent *event) override;
     QPixmap CreatePixmap(QString picPath); //返回圆形头像
     QWidget* CreateWidget(bool isMe,MsgType MsgType,QString Msg); //创建自定义item
     int returnItemHeight(MsgType MsgType,int wLgh = -1); //返回item高度
     void ChangeCurSor(const QPoint &p); //更改鼠标样式
+signals:
+    void SendMsgToFri(int,MsgType,QString);
 
 private slots:
     void on_SendBtn_clicked();

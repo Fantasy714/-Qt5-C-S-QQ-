@@ -32,6 +32,7 @@ public slots:
     void sendSearchFriMsgToSer(int acc); //向服务器发送查找好友信息
     void sendFriAddMsgToSer(int myacc, int targetacc,QString type,QString yanzheng = ""); //发送好友申请信息给服务器
     void ChangeOnlineSta(int acc, QString onl); //改变在线状态
+    void sendSmsToFri(int acc,int targetAcc,QString MsgType,QString Msg); //向好友发送信息
 signals:
     void sendResultToAccMsg(QString type,QString pwd,QString result); //发送结果回注册界面
     void sendResultToLogin(QString result); //发送结果回登录界面

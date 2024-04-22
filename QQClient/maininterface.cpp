@@ -4,7 +4,6 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QAction>
-#include <QPainter>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -12,8 +11,10 @@
 #include <QMessageBox>
 #include <QMetaMethod>
 
+#define Margin 10
+
 MainInterface::MainInterface(QWidget *parent) :
-    QMainWindow(parent),
+    QWidget(parent),
     ui(new Ui::MainInterface)
 {
     ui->setupUi(this);
@@ -43,8 +44,14 @@ MainInterface::MainInterface(QWidget *parent) :
     //设置无边框窗口
     setWindowFlags(Qt::FramelessWindowHint | Qt::SplashScreen | Qt::WindowStaysOnTopHint);
 
-    //设置追踪鼠标
+    //初始化窗口阴影
+    initShadow();
+
+    //设置鼠标追踪
     setMouseTracking(true);
+
+    //初始化tabwidget宽度
+    TabWidgetWidth = ui->tabWidget->width();
 
     //添加搜索图标
     QAction * searchAc = new QAction(ui->SearchEdit);
@@ -63,6 +70,7 @@ MainInterface::MainInterface(QWidget *parent) :
     connect(m_mytcp,&TcpThread::isConnectingWithServer,m_log,&Login::isConnectingWithServer);
     connect(m_mytcp,&TcpThread::isConnectingWithServer,this,&MainInterface::Reconnection);
     connect(this,&MainInterface::ChangeOnlineSta,m_mytcp,&TcpThread::ChangeOnlineSta);
+    connect(this,&MainInterface::sendSmsToFri,m_mytcp,&TcpThread::sendSmsToFri);
     connect(m_log,&Login::LoginClose,m_mytcp,&TcpThread::GetClose);
     connect(m_log,&Login::LoginToServer,m_mytcp,&TcpThread::LoginToServer);
     connect(m_mytcp,&TcpThread::sendResultToLogin,m_log,&Login::GetResultFromSer);
@@ -206,7 +214,7 @@ void MainInterface::GetResultFromSer(int type,int acc,QString nickname,QString s
         if(result == "该好友已下线")
         {
             m_waitFriReply.remove(acc);
-            QMessageBox::information(this,"提示",QString("添加好友%1失败,该用户已下线").arg(acc));
+            QMessageBox::information(this,"提示",QString("添加/删除好友%1失败,该用户已下线").arg(acc));
         }
         else
         {
@@ -217,6 +225,41 @@ void MainInterface::GetResultFromSer(int type,int acc,QString nickname,QString s
                 connect(af,&AddFriend::CloseAddFriend,this,&MainInterface::AddFriendClosed);
                 m_addfri.append(af);
                 af->show();
+            }
+            else if(MsgType == "成功删除好友")
+            {
+                qDebug() << "删除好友" << acc << "中...";
+                QString gpN = "";
+                QList<QString> frig = m_friends.keys();
+                for(auto g : frig)
+                {
+                    qDebug() << g;
+                    QList<int> fris = m_friends.values(g);
+                    for(auto f : fris)
+                    {
+                        if(f == acc)
+                        {
+                            qDebug() << "找到该好友，该好友在" << g << "分组";
+                            gpN = g;
+                            break;
+                        }
+                    }
+                    //若已找到则退出循环
+                    if(gpN != "")
+                    {
+                        break;
+                    }
+                }
+                //删除该好友
+                m_friends.remove(gpN,acc);
+                m_frinicknames.remove(acc);
+                m_frisignatures.remove(acc);
+
+                //已更改好友列表
+                FriIsChanged = true;
+
+                //更新好友列表
+                UpdateTreeWidget();
             }
         }
     }
@@ -234,14 +277,8 @@ void MainInterface::GetResultFromSer(int type,int acc,QString nickname,QString s
         }
 
         //若未创建聊天信息框则创建
-        ChatWindow * ctw = m_chatWindows.value(acc);
-        if(ctw == nullptr)
-        {
-            ctw = new ChatWindow(m_account,acc,nickname);
-            m_chatWindows.insert(acc,ctw);
-        }
+        ChatWindow* ctw = showFriChatWindow(acc);
         ctw->FriendSendMsg(false,itsMsg,Msg);
-        ctw->show();
     }
 }
 
@@ -286,24 +323,106 @@ void MainInterface::mousePressEvent(QMouseEvent *e)
 {
     if(e->button() == Qt::LeftButton)
     {
-        isMainWidget = true;
-        m_point = e->globalPos() - pos();
+        isPressed = true;
+        //获取鼠标点下位置相对于窗口左上角的偏移量
+        m_point = e->globalPos() - this->frameGeometry().topLeft();
     }
 }
 
 void MainInterface::mouseMoveEvent(QMouseEvent *e)
 {
-    if(e->buttons() & Qt::LeftButton && isMainWidget)
+    //鼠标未按下则设置鼠标状态
+    if(!isPressed)
     {
-        move(e->globalPos() - m_point);
+        ChangeCurSor(e->pos());
+    }
+    else
+    {
+        QPoint glbPos = e->globalPos();
+        //若在未位于边框上则移动窗口
+        if(e->buttons() & Qt::LeftButton && m_loc == Center)
+        {
+            move(glbPos - m_point);
+            return;
+        }
+
+        //获取当前窗口左上角和右下角
+        QPoint topLeft = this->frameGeometry().topLeft();
+        QPoint BottomRight = this->frameGeometry().bottomRight();
+
+        QRect cRect(topLeft,BottomRight);
+
+        switch(m_loc)
+        {
+        case Top:
+            //如果拖动窗口时底部y坐标减去当前鼠标y坐标已经小于窗口最小高度则不移动，继续移动不会更改窗口大小会推动窗口向下移动，下同
+            if(BottomRight.y() - glbPos.y() > this->minimumHeight())
+            {
+                cRect.setY(glbPos.y());
+            }
+            break;
+        case Bottom:
+            cRect.setHeight(glbPos.y() - topLeft.y());
+            break;
+        case Left:
+            if(BottomRight.x() - glbPos.x() < this->maximumWidth() && BottomRight.x() - glbPos.x() > this->minimumWidth())
+            {
+                cRect.setX(glbPos.x());
+            }
+            break;
+        case Right:
+            cRect.setWidth(glbPos.x() - topLeft.x());
+            break;
+        case Top_Left:
+            if(BottomRight.y() - glbPos.y() > this->minimumHeight())
+            {
+                cRect.setY(glbPos.y());
+            }
+            if(BottomRight.x() - glbPos.x() > this->minimumWidth())
+            {
+                cRect.setX(glbPos.x());
+            }
+            break;
+        case Top_Right:
+            if(BottomRight.y() - glbPos.y() > this->minimumHeight())
+            {
+                cRect.setY(glbPos.y());
+            }
+            cRect.setWidth(glbPos.x() - topLeft.x());
+            break;
+        case Bottom_Left:
+            if(BottomRight.x() - glbPos.x() < this->maximumWidth() && BottomRight.x() - glbPos.x() > this->minimumWidth())
+            {
+                cRect.setX(glbPos.x());
+            }
+            cRect.setHeight(glbPos.y() - topLeft.y());
+            break;
+        case Bottom_Right:
+            cRect.setHeight(glbPos.y() - topLeft.y());
+            cRect.setWidth(glbPos.x() - topLeft.x());
+            break;
+        default:
+            break;
+        }
+        this->setGeometry(cRect);
+    }
+
+    //若拖动后tabWidget宽度更改则同步更改tab的宽度
+    if(ui->tabWidget->width() != TabWidgetWidth)
+    {
+        ui->tabWidget->setStyleSheet(QString("QTabBar::tab{font:20px;width:%1px;height:30px;border-style:solid;border-top-width:0px;border-left-width:0px;"
+                                             "border-right-width:0px;border-bottom-width:1px;border-color:rgb(200,200,200);background-color:white;}QTabBar::tab:selected"
+                                             "{border-bottom-width:3px;border-color:rgb(40,192,253);}QWidget{background-color:white;}").arg(ui->tabWidget->width() / 2));
+        TabWidgetWidth = ui->tabWidget->width();
     }
 }
 
 void MainInterface::mouseReleaseEvent(QMouseEvent *event)
 {
-    //释放时将bool值恢复false
-    isMainWidget = false;
-    event->accept();
+    //释放时将bool值恢复false,鼠标恢复默认状态
+    setCursor(QCursor(Qt::ArrowCursor));
+    m_loc = Center;
+    isPressed = false;
 }
 
 void MainInterface::ShowFindFri()
@@ -334,6 +453,72 @@ QPixmap MainInterface::CreatePixmap(QString picPath)
     painter.drawPixmap(pix.rect(),src);
 
     return pix;
+}
+
+void MainInterface::ChangeCurSor(const QPoint &p)
+{
+    //获取当前鼠标在窗口中的位置
+    int x = p.x();
+    int y = p.y();
+
+    //获取当前位置与窗口最右侧及最下方的距离
+    int fromRight = this->frameGeometry().width() - x;
+    int fromBottom = this->frameGeometry().height() - y;
+
+    //若当前位置x,y坐标都小于Margin距离则在左上角
+    if(x < Margin && y < Margin)
+    {
+        m_loc = Top_Left;
+        setCursor(QCursor(Qt::SizeFDiagCursor));
+    }
+    //在上边
+    else if(x > Margin && fromRight > Margin && y < Margin)
+    {
+        m_loc = Top;
+        setCursor(QCursor(Qt::SizeVerCursor));
+    }
+    //右上角
+    else if(fromRight < Margin && y < Margin)
+    {
+        m_loc = Top_Right;
+        setCursor(QCursor(Qt::SizeBDiagCursor));
+    }
+    //右边
+    else if(fromRight < Margin && y > Margin && fromBottom > Margin)
+    {
+        m_loc = Right;
+        setCursor(QCursor(Qt::SizeHorCursor));
+    }
+    //右下角
+    else if(fromRight < Margin && fromBottom < Margin)
+    {
+        m_loc = Bottom_Right;
+        setCursor(QCursor(Qt::SizeFDiagCursor));
+    }
+    //下边
+    else if(fromBottom < Margin && x > Margin && fromRight > Margin)
+    {
+        m_loc = Bottom;
+        setCursor(QCursor(Qt::SizeVerCursor));
+    }
+    //左下角
+    else if(fromBottom < Margin && x < Margin)
+    {
+        m_loc = Bottom_Left;
+        setCursor(QCursor(Qt::SizeBDiagCursor));
+    }
+    //左边
+    else if(x < Margin && y > Margin && fromBottom > Margin)
+    {
+        m_loc = Left;
+        setCursor(QCursor(Qt::SizeHorCursor));
+    }
+    //否则位于中心界面
+    else
+    {
+        m_loc = Center;
+        setCursor(QCursor(Qt::ArrowCursor));
+    }
 }
 
 void MainInterface::GetFriendsData()
@@ -445,13 +630,24 @@ QTreeWidgetItem *MainInterface::CreateTreeWidgetItem(QString fenzuming, int acc)
 
 void MainInterface::InitFriRitBtnMenu()
 {
-    /* 好友列表右键菜单 */
-    /*
-        QMenu * m_frimenu; //好友右键菜单
-        QAction * m_Chat; //与好友聊天
-        QAction * m_delete; //删除好友
-    */
+    //初始化好友菜单
+    m_Chat = new QAction(QIcon(":/lib/Chat.png"),"发送即时信息");
+    connect(m_Chat,&QAction::triggered,this,[=](){
+        if(m_friItem)
+        {
+            int acc = m_friItem->data(0,Qt::UserRole).toInt();
+            showFriChatWindow(acc);
+        }
+    });
 
+    m_delete = new QAction(QIcon(":/lib/delete.png"),"删除好友");
+    connect(m_delete,&QAction::triggered,this,&MainInterface::DelFri);
+
+    m_frimenu = new QMenu(this);
+    m_frimenu->addAction(m_Chat);
+    m_frimenu->addAction(m_delete);
+
+    //初始化分组菜单
     m_addgrp = new QAction("添加分组");
     connect(m_addgrp,&QAction::triggered,this,&MainInterface::AddGroup);
 
@@ -521,6 +717,56 @@ void MainInterface::Reconnection(bool onl)
     }
 }
 
+void MainInterface::SendMsgToFri(int targetAcc,MsgType type, QString msg)
+{
+    if(type == itsMsg)
+    {
+        emit sendSmsToFri(m_account,targetAcc,"普通信息",msg);
+    }
+}
+
+void MainInterface::DelFri()
+{
+    if(m_friItem)
+    {
+        //获取要删除的好友账号
+        int acc = m_friItem->data(0,Qt::UserRole).toInt();
+        emit sendFriAddMsgToSer(m_account,acc,"删除好友","");
+    }
+}
+
+ChatWindow* MainInterface::showFriChatWindow(int acc)
+{
+    ChatWindow * ctw = m_chatWindows.value(acc);
+    if(ctw == nullptr)
+    {
+        ctw = new ChatWindow(m_account,acc,m_frinicknames[acc]);
+        connect(ctw,&ChatWindow::SendMsgToFri,this,&MainInterface::SendMsgToFri);
+        m_chatWindows.insert(acc,ctw);
+    }
+    ctw->show();
+    return ctw;
+}
+
+void MainInterface::initShadow()
+{
+    //设置背景透明
+    setAttribute(Qt::WA_TranslucentBackground);
+
+    //设置阴影边框
+    QGraphicsDropShadowEffect * shadow = new QGraphicsDropShadowEffect(this);
+    shadow->setOffset(0,0);
+    shadow->setColor(Qt::black);
+    shadow->setBlurRadius(15);
+    this->setGraphicsEffect(shadow);
+}
+
+void MainInterface::paintEvent(QPaintEvent *event)
+{
+    QPainter painter(this);
+    painter.fillRect(this->rect().adjusted(15,15,-15,-15),QColor(220,220,220));
+}
+
 void MainInterface::on_CloseBtn_clicked()
 {
     qDebug() << "正常退出";
@@ -556,13 +802,7 @@ void MainInterface::onTreeWidgetDoubleClicked(QTreeWidgetItem *item)
     {
         qDebug() << "准备打开聊天界面";
         int acc = item->data(0,Qt::UserRole).toInt();
-        ChatWindow * ctw = m_chatWindows.value(acc);
-        if(ctw == nullptr)
-        {
-            ctw = new ChatWindow(m_account,acc,m_frinicknames[acc]);
-            m_chatWindows.insert(acc,ctw);
-        }
-        ctw->show();
+        showFriChatWindow(acc);
     }
 }
 
@@ -620,7 +860,8 @@ void MainInterface::FriRightBtnMenu(const QPoint &pos)
         //右键点击好友
         else
         {
-
+            m_friItem = sitem;
+            m_frimenu->exec(QCursor::pos(0));
         }
     }
 }

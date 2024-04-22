@@ -139,7 +139,7 @@ void MainWindow::SendMsgToClt(quint16 port, int type, int acc, int targetacc, QB
 {
     QTcpSocket * sock;
     //获取目标套接字
-    if(msgtype == "发送好友申请" || type == SendMsg)
+    if(msgtype == "发送好友申请" || msgtype == "成功删除好友" || type == SendMsg)
     {
         sock = m_onlines[targetacc];
     }

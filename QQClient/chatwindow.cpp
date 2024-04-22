@@ -4,13 +4,16 @@
 #include <QDebug>
 #include <QMessageBox>
 
-#define Margin 5
+#define Margin 10
 
 ChatWindow::ChatWindow(int acc,int targetAcc,QString nickN,QWidget *parent) :
     QWidget(parent),
     ui(new Ui::ChatWindow)
 {
     ui->setupUi(this);
+
+    this->setAttribute(Qt::WA_TransparentForMouseEvents,false);
+
     //初始化好友信息
     m_account = acc;
     m_targetAcc = targetAcc;
@@ -22,7 +25,10 @@ ChatWindow::ChatWindow(int acc,int targetAcc,QString nickN,QWidget *parent) :
     m_FriHeadShot = QCoreApplication::applicationDirPath() + "/userdata/allusers/" + QString::number(targetAcc) + ".jpg";
 
     //设置无边框窗口
-    setWindowFlag(Qt::FramelessWindowHint);
+    setWindowFlags(Qt::FramelessWindowHint);
+
+    //设置阴影边框
+    initShadow();
 
     //设置鼠标追踪
     this->setMouseTracking(true);
@@ -36,6 +42,8 @@ ChatWindow::ChatWindow(int acc,int targetAcc,QString nickN,QWidget *parent) :
 
     //设置好友的昵称
     ui->FriName->setText(m_nickname);
+
+    ui->ChatList->setSpacing(0);
 
     //禁止隐藏聊天框和输入框
     int index1 = ui->splitter->indexOf(ui->widget);
@@ -60,9 +68,8 @@ void ChatWindow::mousePressEvent(QMouseEvent *e)
     {
         isPressed = true;
         //获取鼠标点下位置相对于窗口左上角的偏移量
-        m_point = e->globalPos() - frameGeometry().topLeft();
+        m_point = e->globalPos() - this->frameGeometry().topLeft();
     }
-    e->accept();
 }
 
 void ChatWindow::mouseMoveEvent(QMouseEvent *e)
@@ -70,21 +77,86 @@ void ChatWindow::mouseMoveEvent(QMouseEvent *e)
     //鼠标未按下则设置鼠标状态
     if(!isPressed)
     {
-        qDebug() << e->pos();
         ChangeCurSor(e->pos());
     }
     else
     {
+        QPoint glbPos = e->globalPos();
+        //若在未位于边框上则移动窗口
+        if(e->buttons() & Qt::LeftButton && m_loc == Center)
+        {
+            move(glbPos - m_point);
+            return;
+        }
 
+        //获取当前窗口左上角和右下角
+        QPoint topLeft = this->frameGeometry().topLeft();
+        QPoint BottomRight = this->frameGeometry().bottomRight();
+
+        QRect cRect(topLeft,BottomRight);
+
+        switch(m_loc)
+        {
+        case Top:
+            //如果拖动窗口时底部y坐标减去当前鼠标y坐标已经小于窗口最小高度则不移动，继续移动不会更改窗口大小会推动窗口向下移动，下同
+            if(BottomRight.y() - glbPos.y() > this->minimumHeight())
+            {
+                cRect.setY(glbPos.y());
+            }
+            break;
+        case Bottom:
+            cRect.setHeight(glbPos.y() - topLeft.y());
+            break;
+        case Left:
+            if(BottomRight.x() - glbPos.x() > this->minimumWidth())
+            {
+                cRect.setX(glbPos.x());
+            }
+            break;
+        case Right:
+            cRect.setWidth(glbPos.x() - topLeft.x());
+            break;
+        case Top_Left:
+            if(BottomRight.y() - glbPos.y() > this->minimumHeight())
+            {
+                cRect.setY(glbPos.y());
+            }
+            if(BottomRight.x() - glbPos.x() > this->minimumWidth())
+            {
+                cRect.setX(glbPos.x());
+            }
+            break;
+        case Top_Right:
+            if(BottomRight.y() - glbPos.y() > this->minimumHeight())
+            {
+                cRect.setY(glbPos.y());
+            }
+            cRect.setWidth(glbPos.x() - topLeft.x());
+            break;
+        case Bottom_Left:
+            if(BottomRight.x() - glbPos.x() > this->minimumWidth())
+            {
+                cRect.setX(glbPos.x());
+            }
+            cRect.setHeight(glbPos.y() - topLeft.y());
+            break;
+        case Bottom_Right:
+            cRect.setHeight(glbPos.y() - topLeft.y());
+            cRect.setWidth(glbPos.x() - topLeft.x());
+            break;
+        default:
+            break;
+        }
+        this->setGeometry(cRect);
     }
-    e->accept();
 }
 
 void ChatWindow::mouseReleaseEvent(QMouseEvent *event)
 {
-    //释放时将bool值恢复false
+    //释放时将bool值恢复false,鼠标恢复默认状态
+    setCursor(QCursor(Qt::ArrowCursor));
+    m_loc = Center;
     isPressed = false;
-    event->accept();
 }
 
 void ChatWindow::mouseDoubleClickEvent(QMouseEvent *event)
@@ -102,7 +174,7 @@ void ChatWindow::mouseDoubleClickEvent(QMouseEvent *event)
 void ChatWindow::paintEvent(QPaintEvent *event)
 {
     QPainter painter(this);
-    painter.fillRect(this->rect().)
+    painter.fillRect(this->rect().adjusted(15,15,-15,-15),QColor(220,220,220));
 }
 
 QPixmap ChatWindow::CreatePixmap(QString picPath)
@@ -139,30 +211,37 @@ int ChatWindow::returnItemHeight(MsgType MsgType,int wLgh)
         return 20;
     case itsMsg:
     {
+        /*
+         * 后续应权衡SizePolicy和窗口容纳字数多少更改此处消息item高度
+        */
         //根据发送信息的字数判断item的高度
         if(wLgh < 19)
         {
-            return 60;
+            return 50;
         }
         else if(wLgh < 57)
         {
-            return 100;
+            return 90;
+        }
+        else if(wLgh < 95)
+        {
+            return 106;
         }
         else if(wLgh < 133)
         {
-            return 130;
+            return 120;
         }
         else if(wLgh < 300)
         {
-            return 150;
+            return 140;
         }
         else if(wLgh < 380)
         {
-            return 180;
+            return 170;
         }
         else if(wLgh < 520)
         {
-            return 230;
+            return 220;
         }
         else
         {
@@ -185,14 +264,62 @@ void ChatWindow::ChangeCurSor(const QPoint &p)
     int y = p.y();
 
     //获取当前位置与窗口最右侧及最下方的距离
-    int fromRight = frameGeometry().width() - x;
-    int fromBottom = frameGeometry().height() - y;
+    int fromRight = this->frameGeometry().width() - x;
+    int fromBottom = this->frameGeometry().height() - y;
 
     //若当前位置x,y坐标都小于Margin距离则在左上角
     if(x < Margin && y < Margin)
     {
         m_loc = Top_Left;
         setCursor(QCursor(Qt::SizeFDiagCursor));
+    }
+    //在上边
+    else if(x > Margin && fromRight > Margin && y < Margin)
+    {
+        m_loc = Top;
+        setCursor(QCursor(Qt::SizeVerCursor));
+    }
+    //右上角
+    else if(fromRight < Margin && y < Margin)
+    {
+        m_loc = Top_Right;
+        setCursor(QCursor(Qt::SizeBDiagCursor));
+    }
+    //右边
+    else if(fromRight < Margin && y > Margin && fromBottom > Margin)
+    {
+        m_loc = Right;
+        setCursor(QCursor(Qt::SizeHorCursor));
+    }
+    //右下角
+    else if(fromRight < Margin && fromBottom < Margin)
+    {
+        m_loc = Bottom_Right;
+        setCursor(QCursor(Qt::SizeFDiagCursor));
+    }
+    //下边
+    else if(fromBottom < Margin && x > Margin && fromRight > Margin)
+    {
+        m_loc = Bottom;
+        setCursor(QCursor(Qt::SizeVerCursor));
+    }
+    //左下角
+    else if(fromBottom < Margin && x < Margin)
+    {
+        m_loc = Bottom_Left;
+        setCursor(QCursor(Qt::SizeBDiagCursor));
+    }
+    //左边
+    else if(x < Margin && y > Margin && fromBottom > Margin)
+    {
+        m_loc = Left;
+        setCursor(QCursor(Qt::SizeHorCursor));
+    }
+    //否则位于中心界面
+    else
+    {
+        m_loc = Center;
+        setCursor(QCursor(Qt::ArrowCursor));
     }
 }
 
@@ -234,6 +361,7 @@ QWidget *ChatWindow::CreateWidget(bool isMe, MsgType MsgType, QString Msg)
             pix = CreatePixmap(m_FriHeadShot).scaled(40,40);
         }
         HeadS->setPixmap(pix);
+        HeadS->setFixedSize(42,42);
 
         //信息Label
         QLabel * MsgLab = new QLabel;
@@ -242,6 +370,7 @@ QWidget *ChatWindow::CreateWidget(bool isMe, MsgType MsgType, QString Msg)
         MsgLab->setSizePolicy(QSizePolicy::Maximum,QSizePolicy::Maximum);
         //自动换行
         MsgLab->setWordWrap(true);
+
         //判断是好友还是自己设置对应的label样式
         if(isMe)
         {
@@ -258,7 +387,7 @@ QWidget *ChatWindow::CreateWidget(bool isMe, MsgType MsgType, QString Msg)
         }
 
         //设置四周边距
-        layout->setContentsMargins(10,5,10,5);
+        layout->setContentsMargins(10,0,10,0);
 
         layout->addWidget(HeadS);
         layout->addWidget(MsgLab);
@@ -300,6 +429,19 @@ void ChatWindow::FriendSendMsg(bool isMe,MsgType MsgType, QString Msg)
     ui->ChatList->setItemWidget(item,widget);
 }
 
+void ChatWindow::initShadow()
+{
+    //设置背景透明
+    setAttribute(Qt::WA_TranslucentBackground);
+
+    //设置阴影边框
+    QGraphicsDropShadowEffect * shadow = new QGraphicsDropShadowEffect(this);
+    shadow->setOffset(0,0);
+    shadow->setColor(Qt::black);
+    shadow->setBlurRadius(15);
+    this->setGraphicsEffect(shadow);
+}
+
 void ChatWindow::on_SendBtn_clicked()
 {
     QString SendMsg = ui->textEdit->toPlainText();
@@ -309,6 +451,7 @@ void ChatWindow::on_SendBtn_clicked()
         return;
     }
     FriendSendMsg(true,itsMsg,SendMsg);
+    emit SendMsgToFri(m_targetAcc,itsMsg,SendMsg);
     ui->textEdit->clear();
 }
 

@@ -942,6 +942,9 @@ QComboBox::down-arrow
      <height>20</height>
     </size>
    </property>
+   <property name="cursor">
+    <cursorShape>PointingHandCursor</cursorShape>
+   </property>
    <property name="focusPolicy">
     <enum>Qt::ClickFocus</enum>
    </property>
@@ -1086,6 +1089,9 @@ QPushButton:pressed
         <width>70</width>
         <height>20</height>
        </size>
+      </property>
+      <property name="cursor">
+       <cursorShape>PointingHandCursor</cursorShape>
       </property>
       <property name="focusPolicy">
        <enum>Qt::ClickFocus</enum>
