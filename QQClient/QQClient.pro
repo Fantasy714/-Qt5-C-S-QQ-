@@ -18,29 +18,35 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
     account.cpp \
     addfriend.cpp \
+    changedata.cpp \
     chatwindow.cpp \
     findfriends.cpp \
     main.cpp \
     login.cpp \
     maininterface.cpp \
+    personaldata.cpp \
     tcpthread.cpp
 
 HEADERS += \
     account.h \
     addfriend.h \
+    changedata.h \
     chatwindow.h \
     findfriends.h \
     login.h \
     maininterface.h \
+    personaldata.h \
     tcpthread.h
 
 FORMS += \
     account.ui \
     addfriend.ui \
+    changedata.ui \
     chatwindow.ui \
     findfriends.ui \
     login.ui \
-    maininterface.ui
+    maininterface.ui \
+    personaldata.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

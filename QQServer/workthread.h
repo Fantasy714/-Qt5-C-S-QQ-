@@ -10,7 +10,7 @@
 #include <QDir>
 
 //保存信息类型
-enum InforType { Registration = 1125, FindPwd, LoginAcc, SearchFri, AddFri, ChangeOnlSta, SendMsg };
+enum InforType { Registration = 1125, FindPwd, LoginAcc, SearchFri, AddFri, ChangeOnlSta, SendMsg, AskForData, UserChangeData };
 //保存用户资料标号
 enum UserMsg { ennickname = 0,ensignature,ensex,enage,enbirthday,enlocation,enblood_type,enwork,ensch_comp };
 
@@ -28,7 +28,9 @@ public:
     void SearchingFri(int acc); //查找好友
     void CltAddFri(int acc,int targetacc,QString msgType,QString yanzheng); //处理好友申请信息
     void CltChangeOnlSta(int acc,QString onlsta); //用户改变在线状态
-    void ForwardInformation(int acc,int targetacc, QString msgType, QString msg); //转发信息给其他客户端
+    void ForwardInformation(int acc,int targetacc, QString msgType, QString msg,QString filePath = ""); //转发信息给其他客户端
+    void AskForUserData(int acc,QString isSelf,int HeadShotSize = -1); //请求个人资料
+    void ChangingUserDatas(int acc,QString datas);
 signals:
     void ThreadbackMsg(QString type,int account,QString msg,int target = 0); //从线程传消息回服务器
     void UserOnLine(int acc,quint16 sockport); //用户上线则发送该tcp套接字加入服务器在线用户哈希表中

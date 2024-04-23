@@ -32,5 +32,12 @@
         <file>lib/fileIcon.png</file>
         <file>lib/biaoqing.png</file>
         <file>lib/BigToNormal.png</file>
+        <file>lib/gengduo.png</file>
+        <file>lib/xingbie.png</file>
+        <file>lib/nicheng.png</file>
+        <file>lib/zhanghao.png</file>
+        <file>lib/backg.jpeg</file>
+        <file>lib/Greyzuixiaohua.png</file>
+        <file>lib/Greyguanbi.png</file>
     </qresource>
 </RCC>

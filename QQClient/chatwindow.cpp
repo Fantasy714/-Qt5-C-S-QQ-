@@ -3,6 +3,7 @@
 #include <QLabel>
 #include <QDebug>
 #include <QMessageBox>
+#include <QFileDialog>
 
 #define Margin 10
 
@@ -249,6 +250,7 @@ int ChatWindow::returnItemHeight(MsgType MsgType,int wLgh)
         }
     }
     case itsPicture:
+        return 250;
         break;
     case itsFile:
         break;
@@ -392,6 +394,53 @@ QWidget *ChatWindow::CreateWidget(bool isMe, MsgType MsgType, QString Msg)
         layout->addWidget(HeadS);
         layout->addWidget(MsgLab);
         layout->addStretch();
+        break;
+    }
+    case itsPicture:
+    {
+        //头像Label
+        QLabel * HeadS = new QLabel;
+        QPixmap pix;
+        //判断是自己的头像还是对方的
+        if(isMe)
+        {
+            pix = CreatePixmap(m_MyHeadShot).scaled(40,40);
+        }
+        else
+        {
+            pix = CreatePixmap(m_FriHeadShot).scaled(40,40);
+        }
+        HeadS->setPixmap(pix);
+        HeadS->setFixedSize(42,42);
+
+        //图片Label
+        QLabel * PicLab = new QLabel;
+        //设置图片
+        QImage img(Msg);
+
+        //图片固定高度为230，将图片高度除以230得到图片缩小放大的倍数，再用来将图片宽度缩放到合适的比例
+        double scaleNum = (double)img.height() / 230.00;
+        double pWidth = (double)img.width() / scaleNum;
+        img = img.scaled((int)pWidth,230);
+
+        //设置图片并设置label固定大小
+        PicLab->setPixmap(QPixmap::fromImage(img));
+        PicLab->setFixedSize(pWidth,230);
+
+        if(isMe)
+        {
+            layout->setDirection(QBoxLayout::RightToLeft);
+        }
+        else
+        {
+            layout->setDirection(QBoxLayout::LeftToRight);
+        }
+
+        layout->addWidget(HeadS);
+        layout->addWidget(PicLab);
+        layout->addStretch();
+
+        break;
     }
     }
     widget->setLayout(layout);
@@ -470,4 +519,13 @@ void ChatWindow::on_BigBtn_clicked()
         ui->BigBtn->setIcon(QPixmap(":/lib/Big.png"));
         this->showNormal();
     }
+}
+
+void ChatWindow::on_PicBtn_clicked()
+{
+    QString SendFileName = QFileDialog::getOpenFileName(this,"发送图片","","Picture Files(*.jpg;*.png)");
+    qDebug() << "发送图片: " << SendFileName;
+    //更新自己的聊天框同时发送文件
+    FriendSendMsg(true,itsPicture,SendFileName);
+    emit SendMsgToFri(m_targetAcc,itsPicture,SendFileName);
 }

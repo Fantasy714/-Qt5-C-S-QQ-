@@ -49,12 +49,14 @@ protected:
     int returnItemHeight(MsgType MsgType,int wLgh = -1); //返回item高度
     void ChangeCurSor(const QPoint &p); //更改鼠标样式
 signals:
-    void SendMsgToFri(int,MsgType,QString);
+    void SendMsgToFri(int,MsgType,QString); //向朋友发送信息
 
 private slots:
     void on_SendBtn_clicked();
 
     void on_BigBtn_clicked();
+
+    void on_PicBtn_clicked();
 
 private:
     Ui::ChatWindow *ui;

@@ -16,6 +16,7 @@ public:
     QString FindPwd(int account); //找回密码
     int LoginVerification(int acc, QString pwd); //登录
     QStringList UserMessages(int acc); //返回用户资料
+    bool ChangeUserMessages(int acc,QStringList uD); //更改用户资料
     bool ChangeOnlineSta(int acc,QString sta); //更改在线状态
     bool CreateFriends(int acc); //注册成功时创建该用户的好友列表
     bool AddFriend(int acc1,int acc2); //添加好友
@@ -25,6 +26,8 @@ public:
 signals:
 
 private:
+    //保存用户资料标号
+    enum UserMsg { ennickname = 0,ensignature,ensex,enage,enbirthday,enlocation,enblood_type,enwork,ensch_comp };
     QSqlDatabase db;
     QSqlQuery result;
 };

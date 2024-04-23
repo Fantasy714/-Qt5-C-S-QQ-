@@ -110,6 +110,18 @@ QStringList Qqsqldata::UserMessages(int acc)
     return userDatas;
 }
 
+bool Qqsqldata::ChangeUserMessages(int acc, QStringList uD)
+{
+    for(auto d : uD)
+    {
+        qDebug() << d;
+    }
+
+    bool suc = result.exec(QString("update qqaccount set nickname = '%1',signature = '%2',sex = '%3',age = %4,birthday = '%5',location = '%6',blood_type = '%7',work = '%8',sch_comp = '%9' "
+                                   "where account = %10;").arg(uD.at(ennickname)).arg(uD.at(ensignature)).arg(uD.at(ensex)).arg(uD.at(enage).toInt()).arg(uD.at(enbirthday)).arg(uD.at(enlocation)).arg(uD.at(enblood_type)).arg(uD.at(enwork)).arg(uD.at(ensch_comp)).arg(acc));
+    return suc;
+}
+
 bool Qqsqldata::ChangeOnlineSta(int acc,QString sta)
 {
     bool suc = result.exec(QString("update qqaccount set onlinestatus = '%1' where account = %2;").arg(sta).arg(acc));

@@ -71,6 +71,8 @@ MainInterface::MainInterface(QWidget *parent) :
     connect(m_mytcp,&TcpThread::isConnectingWithServer,this,&MainInterface::Reconnection);
     connect(this,&MainInterface::ChangeOnlineSta,m_mytcp,&TcpThread::ChangeOnlineSta);
     connect(this,&MainInterface::sendSmsToFri,m_mytcp,&TcpThread::sendSmsToFri);
+    connect(this,&MainInterface::AskForUserData,m_mytcp,&TcpThread::AskForUserData);
+    connect(this,&MainInterface::ChangingUserDatas,m_mytcp,&TcpThread::ChangingUserDatas);
     connect(m_log,&Login::LoginClose,m_mytcp,&TcpThread::GetClose);
     connect(m_log,&Login::LoginToServer,m_mytcp,&TcpThread::LoginToServer);
     connect(m_mytcp,&TcpThread::sendResultToLogin,m_log,&Login::GetResultFromSer);
@@ -134,6 +136,10 @@ MainInterface::~MainInterface()
     {
         delete chat;
     }
+    for(auto pdata : m_PersonData)
+    {
+        delete pdata;
+    }
     for(auto af : m_addfri)
     {
         delete af;
@@ -156,7 +162,9 @@ void MainInterface::ShowAccount(bool isfind)
 
 void MainInterface::GetResultFromSer(int type,int acc,QString nickname,QString signature,QString result,QString uData,QString Msg,QString MsgType)
 {
-    if(type == LoginAcc)
+    switch(type)
+    {
+    case LoginAcc:
     {
         //标记为已登录
         isLogined = true;
@@ -173,7 +181,7 @@ void MainInterface::GetResultFromSer(int type,int acc,QString nickname,QString s
         ui->HeadShotBtn->setToolTip("设置个人资料");
         QPixmap pix = CreatePixmap(m_headshot);
         ui->HeadShotBtn->setIcon(QIcon(pix));
-        ui->HeadShotBtn->setIconSize(QSize(ui->HeadShotBtn->width(),ui->HeadShotBtn->height()));
+        ui->HeadShotBtn->setIconSize(QSize(ui->HeadShotBtn->width() - 5,ui->HeadShotBtn->height() - 5));
         //设置用户昵称签名
         ui->NickNameLab->setText(m_nickname);
         ui->SignatureLine->setText(m_signature);
@@ -185,6 +193,9 @@ void MainInterface::GetResultFromSer(int type,int acc,QString nickname,QString s
         //初始化好友列表
         InitTreeWidget();
 
+        //显示好友列表
+        ui->tabWidget->setCurrentIndex(2);
+
         //退出登录界面
         m_log->closeSystemIcon();
         m_log->hide();
@@ -193,8 +204,9 @@ void MainInterface::GetResultFromSer(int type,int acc,QString nickname,QString s
         m_sysIcon->setToolTip("QQ:" + m_nickname + "(" + QString::number(m_account) + ")");
         m_sysIcon->show();
         this->show();
+        break;
     }
-    else if(type == SearchFri)
+    case SearchFri:
     {
         if(result == "查找失败")
         {
@@ -208,8 +220,9 @@ void MainInterface::GetResultFromSer(int type,int acc,QString nickname,QString s
             m_addfri.append(af);
             af->show();
         }
+        break;
     }
-    else if(type == AddFri)
+    case AddFri:
     {
         if(result == "该好友已下线")
         {
@@ -262,10 +275,17 @@ void MainInterface::GetResultFromSer(int type,int acc,QString nickname,QString s
                 UpdateTreeWidget();
             }
         }
+        break;
     }
-    else if(type == SendMsg)
+    case SendMsg:
     {
-        if(MsgType == "添加好友成功")
+        if(MsgType == "发送图片")
+        {
+            ChatWindow * ctw = showFriChatWindow(acc);
+            ctw->FriendSendMsg(false,itsPicture,Msg);
+            return;
+        }
+        else if(MsgType == "添加好友成功")
         {
             //好友列表已更改
             FriIsChanged = true;
@@ -279,6 +299,21 @@ void MainInterface::GetResultFromSer(int type,int acc,QString nickname,QString s
         //若未创建聊天信息框则创建
         ChatWindow* ctw = showFriChatWindow(acc);
         ctw->FriendSendMsg(false,itsMsg,Msg);
+        break;
+    }
+    case AskForData:
+    {
+        if(MsgType == "请求自己的")
+        {
+            QStringList Datas = uData.split("@@");
+            PersonalData * pd = new PersonalData(true,m_account,Datas);
+            connect(pd,&PersonalData::ClosePerData,this,&MainInterface::ClosePerData);
+            connect(pd,&PersonalData::ChangingData,this,&MainInterface::EditPersonalData);
+            m_PersonData.insert(m_account,pd);
+            pd->show();
+        }
+        break;
+    }
     }
 }
 
@@ -723,6 +758,10 @@ void MainInterface::SendMsgToFri(int targetAcc,MsgType type, QString msg)
     {
         emit sendSmsToFri(m_account,targetAcc,"普通信息",msg);
     }
+    else if(type == itsPicture)
+    {
+        emit sendSmsToFri(m_account,targetAcc,"发送图片",msg);
+    }
 }
 
 void MainInterface::DelFri()
@@ -744,8 +783,90 @@ ChatWindow* MainInterface::showFriChatWindow(int acc)
         connect(ctw,&ChatWindow::SendMsgToFri,this,&MainInterface::SendMsgToFri);
         m_chatWindows.insert(acc,ctw);
     }
-    ctw->show();
+    ctw->showNormal();
     return ctw;
+}
+
+void MainInterface::ClosePerData(int acc)
+{
+    PersonalData * pd = (PersonalData*)sender();
+    m_PersonData.remove(acc);
+    pd->close();
+    pd->deleteLater();
+}
+
+void MainInterface::EditPersonalData(QStringList uD)
+{
+    if(m_editData == nullptr)
+    {
+        m_editData = new ChangeData(uD);
+        connect(m_editData,&ChangeData::CloseEdit,this,&MainInterface::CloseEdit);
+        connect(m_editData,&ChangeData::ChangeUserDatas,this,&MainInterface::ChangeUserDatas);
+    }
+    m_editData->show();
+}
+
+void MainInterface::CloseEdit()
+{
+    m_editData->close();
+    delete m_editData;
+    m_editData = nullptr;
+}
+
+void MainInterface::ChangeUserDatas(QString datas)
+{
+    //先更新主界面
+    QString nkN = datas.split("@@").at(Dnickname);
+    QString sig = datas.split("@@").at(Dsignature);
+
+    if(nkN != m_nickname)
+    {
+        m_nickname = nkN;
+        ui->NickNameLab->setText(nkN);
+        ChangingLoginFile(nkN,"");
+    }
+    if(sig != m_signature)
+    {
+        m_signature = sig;
+        ui->SignatureLine->setText(sig);
+    }
+
+    emit ChangingUserDatas(m_account,datas);
+}
+
+void MainInterface::ChangingLoginFile(QString NkN, QString pwd)
+{
+    //更改昵称
+    if(NkN != "")
+    {
+        QFile file(m_userpath + "/login.txt");
+        file.open(QFile::ReadOnly);
+        QByteArray loginD = file.readAll();
+        file.close();
+
+        QString data(loginD);
+        QStringList datas = data.split("@@");
+        //删除原来的昵称
+        datas.removeAt(0);
+        //清空data中内容
+        data.clear();
+        //填入新昵称
+        data.append(NkN);
+        //加入其他信息
+        for(auto d : datas)
+        {
+            data.append("@@");
+            data.append(d);
+        }
+        //更新文件
+        file.open(QFile::WriteOnly | QFile::Truncate);
+        file.write(data.toUtf8());
+        file.close();
+    }
+    else
+    {
+
+    }
 }
 
 void MainInterface::initShadow()
@@ -1010,4 +1131,10 @@ void MainInterface::ItemNameChanged(QTreeWidgetItem *item)
         disconnect(ui->treeWidget,&QTreeWidget::itemChanged,this,&MainInterface::ItemNameChanged);
         item->setFlags(Qt::ItemIsEnabled);
     }
+}
+
+void MainInterface::on_HeadShotBtn_clicked()
+{
+    qDebug() << "打开自己的个人资料";
+    emit AskForUserData("请求自己的",m_account);
 }

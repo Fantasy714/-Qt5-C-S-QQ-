@@ -79,6 +79,16 @@ void TcpThread::sendSmsToFri(int acc, int targetAcc, QString MsgType, QString Ms
     MsgToJson(SendMsg,acc,targetAcc,Msg,MsgType);
 }
 
+void TcpThread::AskForUserData(QString isMe, int acc, QString size)
+{
+    MsgToJson(AskForData,acc,-1,"",isMe);
+}
+
+void TcpThread::ChangingUserDatas(int acc, QString datas)
+{
+    MsgToJson(UserChangeData,acc,-1,datas,"");
+}
+
 void TcpThread::connectToServer()
 {
     qDebug() << "tcp套接字线程ID:" << QThread::currentThreadId();
@@ -266,6 +276,12 @@ void TcpThread::ParseMsg(QByteArray data,QByteArray filedata)
                     qDebug() << "文件夹创建失败";
                     return;
                 }
+
+                if(!m_dir.mkdir(m_path + "/" + accountS + "/FileRecv"))
+                {
+                    qDebug() << "文件接收文件夹创建失败";
+                    return;
+                }
                 qDebug() << "文件夹创建成功，正在写入初始文件: " << accountS;
 
                 //接收文件大小
@@ -404,11 +420,33 @@ void TcpThread::ParseMsg(QByteArray data,QByteArray filedata)
 
             sendResultToMainInterFace(type,acc,nickname,signature,"","",msg,msgType);
         }
+        else if(msgType == "发送图片")
+        {
+            QString filePath = m_path + "/" + QString::number(m_account) + "/FileRecv/" + msg;
+            qDebug() << "接收图片: " << filePath;
+            QFile file(filePath);
+            file.open(QFile::WriteOnly);
+            file.write(filedata);
+            file.close();
+            sendResultToMainInterFace(type,acc,"","","","",filePath,msgType);
+        }
         else
         {
             qDebug() << acc;
             sendResultToMainInterFace(type,acc,"","","","",msg,msgType);
         }
+        break;
+    }
+    case AskForData:
+    {
+        int acc = obj.value("account").toInt();
+        QString msgType = obj.value("msgtype").toString();
+        QString Datas = obj.value("userdatas").toString();
+        if(msgType == "请求自己的")
+        {
+            emit sendResultToMainInterFace(AskForData,-1,"","","",Datas,"",msgType);
+        }
+
         break;
     }
     }
@@ -485,7 +523,35 @@ void TcpThread::MsgToJson(InforType type,int acc,int targetacc,QString Msg,QStri
         obj.insert("account",acc);
         obj.insert("targetacc",targetacc);
         obj.insert("msgtype",MsgType);
-        obj.insert("msg",Msg);
+        if(MsgType == "发送图片")
+        {
+            fileName = Msg;
+            //取出文件名称
+            QString fName = Msg.split("/").last();
+            obj.insert("msg",fName);
+        }
+        else
+        {
+            obj.insert("msg",Msg);
+        }
+        break;
+    }
+    case AskForData:
+    {
+        obj.insert("account",acc);
+        obj.insert("msgtype",MsgType);
+        if(MsgType == "请求好友的")
+        {
+            int HsSize = Msg.toInt();
+            qDebug() << "好友的头像大小为: " << HsSize;
+            obj.insert("headSize",HsSize);
+        }
+        break;
+    }
+    case UserChangeData:
+    {
+        obj.insert("account",acc);
+        obj.insert("userdatas",Msg);
         break;
     }
     }
@@ -505,6 +571,14 @@ void TcpThread::SendToServer(QByteArray jsondata, QString fileName)
     if(fileName != "")
     {
         qDebug() << "要发送文件";
+        //将文件中数据读出
+        QFile file(fileName);
+        file.open(QFile::ReadOnly);
+        QByteArray fileD = file.readAll();
+        file.close();
+
+        //将文件加入待发送数据中
+        data.append(fileD);
     }
     //给所有数据数据添加表头
     int size = qToBigEndian(data.size());
@@ -512,7 +586,7 @@ void TcpThread::SendToServer(QByteArray jsondata, QString fileName)
     alldata.append(data);
 
     m_tcp->write(alldata);
-    qDebug() << "已发送信息";
+    qDebug() << "已发送信息" << data.size();
 }
 
 void TcpThread::AutoConnect()

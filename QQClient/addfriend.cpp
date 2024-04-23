@@ -51,7 +51,7 @@ AddFriend::AddFriend(bool type,QStringList gn, QStringList umsg, QString yanzhen
     setWindowIcon(QIcon(":/lib/QQ.png"));
     //设置窗口无边框
     setWindowFlags(Qt::FramelessWindowHint);
-
+    //设置退出该窗口时不退出主程序
     setAttribute(Qt::WA_QuitOnClose,false);
 
     //最小化
@@ -89,7 +89,6 @@ void AddFriend::mouseReleaseEvent(QMouseEvent *event)
 {
     //释放时将bool值恢复false
     isMainWidget = false;
-    event->accept();
 }
 
 QPixmap AddFriend::CreatePixmap(QString picPath)

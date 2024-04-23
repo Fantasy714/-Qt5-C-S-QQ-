@@ -9,7 +9,7 @@
 #include <QCoreApplication>
 
 //保存信息类型
-enum InforType { Registration = 1125, FindPwd, LoginAcc, SearchFri, AddFri, ChangeOnlSta, SendMsg };
+enum InforType { Registration = 1125, FindPwd, LoginAcc, SearchFri, AddFri, ChangeOnlSta, SendMsg, AskForData, UserChangeData };
 
 class TcpThread : public QObject
 {
@@ -33,6 +33,8 @@ public slots:
     void sendFriAddMsgToSer(int myacc, int targetacc,QString type,QString yanzheng = ""); //发送好友申请信息给服务器
     void ChangeOnlineSta(int acc, QString onl); //改变在线状态
     void sendSmsToFri(int acc,int targetAcc,QString MsgType,QString Msg); //向好友发送信息
+    void AskForUserData(QString isMe, int acc, QString size = ""); //请求用户个人资料
+    void ChangingUserDatas(int,QString); //更改用户资料
 signals:
     void sendResultToAccMsg(QString type,QString pwd,QString result); //发送结果回注册界面
     void sendResultToLogin(QString result); //发送结果回登录界面

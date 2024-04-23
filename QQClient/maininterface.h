@@ -16,6 +16,8 @@
 #include "chatwindow.h"
 #include <QPainter>
 #include <QGraphicsDropShadowEffect>
+#include <personaldata.h>
+#include "changedata.h"
 
 namespace Ui {
 class MainInterface;
@@ -44,6 +46,11 @@ public slots:
     void SendMsgToFri(int,MsgType,QString); //发送信息给好友
     void DelFri(); //删除好友
     ChatWindow* showFriChatWindow(int acc); //显示好友聊天窗口
+    void ClosePerData(int); //关闭个人资料窗口
+    void EditPersonalData(QStringList); //修改个人资料窗口
+    void CloseEdit(); //关闭编辑窗口
+    void ChangeUserDatas(QString); //更改用户资料
+    void ChangingLoginFile(QString NkN = "", QString pwd = ""); //更改登录文件
 protected:
     void initShadow(); //初始化窗口边框阴影
     void paintEvent(QPaintEvent *event) override;
@@ -61,6 +68,8 @@ signals:
     void sendFriAddMsgToSer(int myacc, int targetacc,QString type,QString yanzheng = ""); //发送好友申请信息给服务器
     void ChangeOnlineSta(int acc, QString onl); //改变在线状态
     void sendSmsToFri(int acc,int targetAcc,QString MsgType,QString Msg); //向好友发送信息
+    void AskForUserData(QString isMe, int acc, QString size = ""); //请求用户个人资料
+    void ChangingUserDatas(int,QString); //更改用户资料
 private slots:
     void on_CloseBtn_clicked();
 
@@ -83,6 +92,8 @@ private slots:
     void RemoveGroup(); //删除分组
 
     void ItemNameChanged(QTreeWidgetItem * item); //分组名改变
+
+    void on_HeadShotBtn_clicked();
 
 private:
     Ui::MainInterface *ui;
@@ -109,6 +120,8 @@ private:
     FindFriends * m_FindFri; //查找好友界面
     QList<AddFriend*> m_addfri; //添加好友界面
     QHash<int,ChatWindow*> m_chatWindows; //聊天界面
+    QHash<int,PersonalData*> m_PersonData; //个人资料界面
+    ChangeData * m_editData = nullptr; //修改个人资料界面
 
     /* 登录用户信息 */
     int m_account; //账户

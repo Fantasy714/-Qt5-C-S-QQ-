@@ -5,9 +5,6 @@
 #include <QMouseEvent>
 #include <QCoreApplication>
 
-//用户资料编号
-enum umsg { enacc = 0,ennickname,ensex,enage,enlocation };
-
 namespace Ui {
 class AddFriend;
 }
@@ -33,6 +30,8 @@ private slots:
 
 private:
     Ui::AddFriend *ui;
+    //用户资料编号
+    enum umsg { enacc = 0,ennickname,ensex,enage,enlocation };
     bool m_type; //true为发送好友申请界面，false为接收界面
     bool isMainWidget = false; //记录点下时是否在主窗口上而非内部控件上
     QPoint m_point; //记录鼠标点下位置

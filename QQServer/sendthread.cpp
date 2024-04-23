@@ -66,5 +66,5 @@ void SendThread::SendReply(QByteArray jsondata, QString fileName)
 
     m_tcp->write(alldata);
     m_tcp->flush(); //将数据立刻发出
-    qDebug() << "已发送信息:" << size;
+    qDebug() << "已发送信息:" << data.size();
 }

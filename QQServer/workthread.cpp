@@ -135,8 +135,39 @@ void WorkThread::ParseMsg(QByteArray data,QByteArray filedata)
         int acc = obj.value("account").toInt();
         int targetAcc = obj.value("targetacc").toInt();
         QString msgType = obj.value("msgtype").toString();
+        if(msgType == "发送图片")
+        {
+            QString fileN = obj.value("msg").toString();
+            QString filePath = m_path + "/" + QString::number(targetAcc) + "/FileRecv/" + fileN;
+            qDebug() << filePath << fileN;
+            QFile file(filePath);
+            file.open(QFile::WriteOnly);
+            file.write(filedata);
+            file.close();
+            ForwardInformation(acc,targetAcc,msgType,fileN,filePath);
+            break;
+        }
         QString msg = obj.value("msg").toString();
         ForwardInformation(acc,targetAcc,msgType,msg);
+        break;
+    }
+    case AskForData:
+    {
+        qDebug() << "请求个人资料";
+        int acc = obj.value("account").toInt();
+        QString isSelf = obj.value("msgtype").toString();
+        if(isSelf == "请求自己的")
+        {
+            AskForUserData(acc,isSelf);
+        }
+        break;
+    }
+    case UserChangeData:
+    {
+        qDebug() << "更改用户资料";
+        int acc = obj.value("account").toInt();
+        QString datas = obj.value("userdatas").toString();
+        ChangingUserDatas(acc,datas);
         break;
     }
     }
@@ -250,10 +281,22 @@ void WorkThread::ReplyToJson(int type, QString pwd, QString result,QString fileN
         obj.insert("acc",acc);
         obj.insert("msgType",MsgType);
         obj.insert("msg",Msg);
-        if(MsgType == "添加好友成功")
+        msgtype = MsgType;
+        if(msgtype == "添加好友成功")
         {
             obj.insert("userData",result);
         }
+        else if(msgtype == "发送图片")
+        {
+            sendFileName = fileName;
+        }
+        break;
+    }
+    case AskForData:
+    {
+        obj.insert("account",acc);
+        obj.insert("msgtype",MsgType);
+        obj.insert("userdatas",Msg);
         break;
     }
     }
@@ -286,6 +329,8 @@ void WorkThread::recvRegistered(int acc, QString pwd)
         //如果注册成功则创建以该用户账号为名的文件夹与好友列表文件和头像
         QString path = m_path + "/" + QString::number(acc);
         m_dir.mkdir(path);
+        //创建文件接收文件夹
+        m_dir.mkdir(path + "/FileRecv");
         //创建好友列表文件
         QString pathJ = path + "/friends.json";
         QFile file(pathJ);
@@ -441,7 +486,41 @@ void WorkThread::CltChangeOnlSta(int acc, QString onlsta)
     sql.ChangeOnlineSta(acc,onlsta);
 }
 
-void WorkThread::ForwardInformation(int acc, int targetacc, QString msgType, QString msg)
+void WorkThread::ForwardInformation(int acc, int targetacc, QString msgType, QString msg,QString filePath)
 {
-    ReplyToJson(SendMsg,"","","",acc,targetacc,msgType,msg);
+    ReplyToJson(SendMsg,"","",filePath,acc,targetacc,msgType,msg);
+}
+
+void WorkThread::AskForUserData(int acc, QString isSelf, int HeadShotSize)
+{
+    QReadLocker lock(mutex);
+    if(isSelf == "请求自己的")
+    {
+        m_userDatas = sql.UserMessages(acc);
+        QString datas;
+        for(auto uD : m_userDatas)
+        {
+            datas.append(uD);
+            datas.append("@@");
+        }
+        qDebug() << "返回个人资料: " << datas;
+        ReplyToJson(AskForData,"","","",acc,-1,isSelf,datas);
+    }
+    else
+    {
+
+    }
+}
+
+void WorkThread::ChangingUserDatas(int acc, QString datas)
+{
+    QWriteLocker lock(mutex);
+
+    QStringList UserDatas = datas.split("@@");
+
+    bool changed = sql.ChangeUserMessages(acc,UserDatas);
+    if(!changed)
+    {
+        qDebug() << "用户资料更改失败!";
+    }
 }

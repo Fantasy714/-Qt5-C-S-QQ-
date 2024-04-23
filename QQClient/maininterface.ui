@@ -326,7 +326,17 @@ QToolButton:pressed
             <string notr="true">QPushButton
 {
 	background-color:transparent;
-	border-style:none;
+	border-style:solid;
+	border-width:5px;
+	border-color:transparent;
+	border-radius:33px;
+}
+QPushButton:hover
+{
+	border-style:solid;
+	border-width:5px;
+	border-color:rgba(255,255,255,90);
+	border-radius:33px;
 }</string>
            </property>
            <property name="text">
@@ -492,7 +502,7 @@ QLineEdit:focus
       <string notr="true">QTabBar::tab
 {
 	font:20px;
-	width:140px;
+	width:137px;
 	height:30px;
 	border-style:solid;
 	border-top-width:0px;
@@ -516,7 +526,7 @@ QWidget
       <enum>QTabWidget::Rounded</enum>
      </property>
      <property name="currentIndex">
-      <number>0</number>
+      <number>1</number>
      </property>
      <property name="documentMode">
       <bool>false</bool>
