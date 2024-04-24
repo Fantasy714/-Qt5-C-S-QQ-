@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <QMouseEvent>
 #include <QCoreApplication>
+#include "global.h"
 
 namespace Ui {
 class AddFriend;
@@ -30,13 +31,12 @@ private slots:
 
 private:
     Ui::AddFriend *ui;
-    //用户资料编号
+
+    //添加好友窗口用户资料编号
     enum umsg { enacc = 0,ennickname,ensex,enage,enlocation };
     bool m_type; //true为发送好友申请界面，false为接收界面
     bool isMainWidget = false; //记录点下时是否在主窗口上而非内部控件上
     QPoint m_point; //记录鼠标点下位置
-
-    QString m_alluserspath = QCoreApplication::applicationDirPath() + "/userdata/allusers"; //存放好友头像文件夹位置
 
     /* 想添加的用户信息 */
     int m_acc; //账号
@@ -44,6 +44,10 @@ private:
     QString m_sex; //性别
     QString m_age; //年龄
     QString m_location; //所在地
+
+    const QString m_path = QCoreApplication::applicationDirPath() + "/userdata";
+    const QString m_alluserspath = QCoreApplication::applicationDirPath() + "/userdata/allusers";
+    QString m_userpath = QCoreApplication::applicationDirPath() + "/userdata";
 };
 
 #endif // ADDFRIEND_H

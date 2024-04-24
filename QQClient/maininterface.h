@@ -18,6 +18,7 @@
 #include <QGraphicsDropShadowEffect>
 #include <personaldata.h>
 #include "changedata.h"
+#include "global.h"
 
 namespace Ui {
 class MainInterface;
@@ -51,6 +52,7 @@ public slots:
     void CloseEdit(); //关闭编辑窗口
     void ChangeUserDatas(QString); //更改用户资料
     void ChangingLoginFile(QString NkN = "", QString pwd = ""); //更改登录文件
+    void ChangingHeadShot(QString filePath); //修改头像
 protected:
     void initShadow(); //初始化窗口边框阴影
     void paintEvent(QPaintEvent *event) override;
@@ -68,8 +70,9 @@ signals:
     void sendFriAddMsgToSer(int myacc, int targetacc,QString type,QString yanzheng = ""); //发送好友申请信息给服务器
     void ChangeOnlineSta(int acc, QString onl); //改变在线状态
     void sendSmsToFri(int acc,int targetAcc,QString MsgType,QString Msg); //向好友发送信息
-    void AskForUserData(QString isMe, int acc, QString size = ""); //请求用户个人资料
+    void AskForUserData(QString isMe, int acc); //请求用户个人资料
     void ChangingUserDatas(int,QString); //更改用户资料
+    void ChangingHS(int acc,QString fileP); //修改头像
 private slots:
     void on_CloseBtn_clicked();
 
@@ -108,12 +111,6 @@ private:
     Location m_loc; //记录鼠标当前位置
     int TabWidgetWidth; //记录TabWidget的宽度
 
-    /* 用户文件操作 */
-    QString m_path = QCoreApplication::applicationDirPath() + "/userdata"; //用户数据文件夹位置
-    QString m_alluserspath = m_path + "/allusers"; //存放好友头像文件夹位置
-    QString m_userpath; //存放登录用户文件夹位置
-    QDir m_dir; //操作文件目录
-
     /* 其他界面 */
     Login * m_log; //登录界面
     Account * m_accClass; //注册界面
@@ -149,6 +146,7 @@ private:
     /* 好友列表右键菜单 */
     QMenu * m_frimenu; //好友右键菜单
     QAction * m_Chat; //与好友聊天
+    QAction * m_FriData; //查看好友资料
     QAction * m_delete; //删除好友
 
     /* 好友分组右键菜单 */
@@ -165,6 +163,10 @@ private:
 
     /* 保存选择的好友item */
     QTreeWidgetItem * m_friItem = nullptr; //选择的好友item
+
+    const QString m_path = QCoreApplication::applicationDirPath() + "/userdata";
+    const QString m_alluserspath = QCoreApplication::applicationDirPath() + "/userdata/allusers";
+    QString m_userpath = QCoreApplication::applicationDirPath() + "/userdata";
 };
 
 #endif // MAININTERFACE_H

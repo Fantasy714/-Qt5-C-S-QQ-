@@ -6,78 +6,17 @@
 #include <QJsonValue>
 #include <QFileInfo>
 
-WorkThread::WorkThread(QReadWriteLock * mtx,QTcpSocket * tcp,QObject *parent) : QObject(parent), QRunnable()
+WorkThread::WorkThread(QObject *parent) : QObject(parent)
 {
-    mutex = mtx;
-    m_tcp = tcp;
+
 }
 
-void WorkThread::run()
-{
-    unsigned int totalBytes = 0;
-    unsigned int jsonBytes = 0;
-    unsigned int recvBytes = 0;
-    QByteArray jsondata;
-    QByteArray filedata;
-
-    if(m_tcp->bytesAvailable() == 0) //判断有没有数据;
-    {
-        qDebug() << "无数据或数据已读完";
-        return;
-    }
-    if(m_tcp->bytesAvailable() >= 8)//读取包头
-    {
-        QByteArray head = m_tcp->read(4);
-        totalBytes = qFromBigEndian(*(int*)head.data());
-        qDebug() << "接收到数据的总长度:" << totalBytes;
-        /*
-         * 总长度构成
-         * 有文件
-         * json数据段长度___json数据段___文件数据长度
-         * 无文件
-         * json数据段长度___json数据段
-         * 因此使用时需将totalBytes减去json数据段包头才为所有有效数据的总长
-         */
-        totalBytes = totalBytes - 4;
-        qDebug() << "接收到数据的总长度减去json数据段包头长度:" << totalBytes;
-        QByteArray jsonhead = m_tcp->read(4);
-        jsonBytes = qFromBigEndian(*(int*)jsonhead.data());
-        qDebug() << "接收到的json数据长度:" << jsonBytes;
-    }
-    else
-    {
-        return;
-    }
-    //如果有数据并且json数据段未读完
-    while(m_tcp->bytesAvailable() && recvBytes < jsonBytes)
-    {
-        jsondata.append(m_tcp->read(jsonBytes - recvBytes));
-        recvBytes = jsondata.size();
-    }
-    //如果还有数据则为文件数据，没有则总长与json数据段长相同，不进入该while循环
-    while(m_tcp->bytesAvailable() && recvBytes < totalBytes)
-    {
-        filedata.append(m_tcp->read(totalBytes - recvBytes));
-        recvBytes = filedata.size() + jsonBytes;
-    }
-    if(recvBytes == totalBytes)//数据包读取完毕
-    {
-        qDebug() << "数据包读取完毕";
-        ParseMsg(jsondata,filedata);
-    }
-    if(m_tcp->bytesAvailable()) //若数据未读取完则继续读取
-    {
-        run();
-    }
-}
-
-void WorkThread::ParseMsg(QByteArray data,QByteArray filedata)
+void WorkThread::ParseMsg(QByteArray data)
 {
     QJsonObject obj = QJsonDocument::fromJson(data).object();
     int type = obj.value("type").toInt();
     int account;
     int targetacc;
-    QString pwd;
     switch(type)
     {
     case FindPwd:
@@ -90,7 +29,7 @@ void WorkThread::ParseMsg(QByteArray data,QByteArray filedata)
     case Registration:
     {
         account = obj.value("account").toInt();
-        pwd = obj.value("pwd").toString();
+        QString pwd = obj.value("pwd").toString();
         qDebug() << "客户端注册,注册账号:" << account << "密码:" << pwd;
         recvRegistered(account,pwd);
         break;
@@ -100,7 +39,7 @@ void WorkThread::ParseMsg(QByteArray data,QByteArray filedata)
         qDebug() << "客户端请求登录";
         isFirstLogin = obj.value("isfirstlogin").toBool();
         account = obj.value("account").toInt();
-        pwd = obj.value("pwd").toString();
+        QString pwd = obj.value("pwd").toString();
         CltLogin(account,pwd);
         break;
     }
@@ -139,11 +78,7 @@ void WorkThread::ParseMsg(QByteArray data,QByteArray filedata)
         {
             QString fileN = obj.value("msg").toString();
             QString filePath = m_path + "/" + QString::number(targetAcc) + "/FileRecv/" + fileN;
-            qDebug() << filePath << fileN;
-            QFile file(filePath);
-            file.open(QFile::WriteOnly);
-            file.write(filedata);
-            file.close();
+            qDebug() << "转发图片中...文件路径: " << filePath << "文件名: " << fileN;
             ForwardInformation(acc,targetAcc,msgType,fileN,filePath);
             break;
         }
@@ -160,6 +95,13 @@ void WorkThread::ParseMsg(QByteArray data,QByteArray filedata)
         {
             AskForUserData(acc,isSelf);
         }
+        //若请求的好友的则需查看该用户本地的好友头像是否和服务器端好友大小相同
+        //相同即为好友未更改头像，不相同则需更新好友头像
+        else
+        {
+            int size = obj.value("headSize").toInt();
+            AskForUserData(acc,isSelf,size);
+        }
         break;
     }
     case UserChangeData:
@@ -173,7 +115,7 @@ void WorkThread::ParseMsg(QByteArray data,QByteArray filedata)
     }
 }
 
-void WorkThread::ReplyToJson(int type, QString pwd, QString result,QString fileName,int acc,int targetacc,QString MsgType,QString Msg)
+void WorkThread::ReplyToJson(InforType type, QString pwd, QString result,QString fileName,int acc,int targetacc,QString MsgType,QString Msg)
 {
     QString sendFileName = "";
     //qDebug() << "开始回应客户端";
@@ -297,6 +239,14 @@ void WorkThread::ReplyToJson(int type, QString pwd, QString result,QString fileN
         obj.insert("account",acc);
         obj.insert("msgtype",MsgType);
         obj.insert("userdatas",Msg);
+        if(MsgType == "请求好友的")
+        {
+            obj.insert("result",result);
+            if(result == "需更新头像")
+            {
+                sendFileName = fileName;
+            }
+        }
         break;
     }
     }
@@ -312,7 +262,6 @@ void WorkThread::ReplyToJson(int type, QString pwd, QString result,QString fileN
 
 void WorkThread::recvRegistered(int acc, QString pwd)
 {
-    QWriteLocker lock(mutex);
     QString iconName = sql.Addaccount(acc,pwd);
     //如果返回的头像名为空则为注册失败
     if(iconName == "")
@@ -370,7 +319,6 @@ void WorkThread::recvRegistered(int acc, QString pwd)
 
 void WorkThread::recvFind(int acc)
 {
-    QReadLocker lock(mutex);
     QString rtpwd = sql.FindPwd(acc);
     if(rtpwd == "")
     {
@@ -382,12 +330,11 @@ void WorkThread::recvFind(int acc)
         qDebug() << "密码找回成功!";
         ReplyToJson(FindPwd,rtpwd);
     }
-    ThreadbackMsg("找回密码",acc,rtpwd);
+    ThreadbackMsg(FindPwd,acc,rtpwd);
 }
 
 void WorkThread::CltLogin(int acc, QString pwd)
 {
-    QWriteLocker lock(mutex);
     int result = sql.LoginVerification(acc,pwd);
     if(result == -1) //账号或密码错误
     {
@@ -414,7 +361,6 @@ void WorkThread::CltLogin(int acc, QString pwd)
 
 void WorkThread::SearchingFri(int acc)
 {
-    QReadLocker lock(mutex);
     QString res = sql.OnLineSta(acc);
     //如果返回的结果为空或离线则发送查找失败
     if(res == "离线" || res == "")
@@ -432,7 +378,6 @@ void WorkThread::SearchingFri(int acc)
 
 void WorkThread::CltAddFri(int acc, int targetacc, QString msgType,QString yanzheng)
 {
-    QReadLocker lock(mutex);
     QString res = sql.OnLineSta(targetacc);
     if(res == "离线")
     {
@@ -475,7 +420,6 @@ void WorkThread::CltAddFri(int acc, int targetacc, QString msgType,QString yanzh
 
 void WorkThread::CltChangeOnlSta(int acc, QString onlsta)
 {
-    QWriteLocker lock(mutex);
     QString onlineSta = sql.OnLineSta(acc);
     if(onlineSta == "离线")
     {
@@ -493,29 +437,37 @@ void WorkThread::ForwardInformation(int acc, int targetacc, QString msgType, QSt
 
 void WorkThread::AskForUserData(int acc, QString isSelf, int HeadShotSize)
 {
-    QReadLocker lock(mutex);
+    m_userDatas = sql.UserMessages(acc);
+    QString datas;
+    for(auto uD : m_userDatas)
+    {
+        datas.append(uD);
+        datas.append("@@");
+    }
+    qDebug() << "返回个人资料: " << datas;
+
     if(isSelf == "请求自己的")
     {
-        m_userDatas = sql.UserMessages(acc);
-        QString datas;
-        for(auto uD : m_userDatas)
-        {
-            datas.append(uD);
-            datas.append("@@");
-        }
-        qDebug() << "返回个人资料: " << datas;
         ReplyToJson(AskForData,"","","",acc,-1,isSelf,datas);
     }
     else
     {
-
+        QString hsPath = m_path + "/" + QString::number(acc) + "/" + QString::number(acc) + ".jpg";
+        QFileInfo info(hsPath);
+        int fHs = info.size();
+        qDebug() << "该用户本地的好友头像大小: " << HeadShotSize << "服务器保存的好友头像大小: " << fHs;
+        if(fHs != HeadShotSize) //头像大小不同即为好友已更改头像
+        {
+            qDebug() << "需更新好友头像";
+            ReplyToJson(AskForData,"","需更新头像",hsPath,acc,-1,isSelf,datas);
+            return;
+        }
+        ReplyToJson(AskForData,"","不更新头像","",acc,-1,isSelf,datas);
     }
 }
 
 void WorkThread::ChangingUserDatas(int acc, QString datas)
 {
-    QWriteLocker lock(mutex);
-
     QStringList UserDatas = datas.split("@@");
 
     bool changed = sql.ChangeUserMessages(acc,UserDatas);

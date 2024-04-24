@@ -1,6 +1,8 @@
 #include "personaldata.h"
 #include "ui_personaldata.h"
 #include <QPainter>
+#include <QFileDialog>
+#include <QDebug>
 
 PersonalData::PersonalData(bool isMe,int acc,QStringList UserData,QWidget *parent) :
     QWidget(parent),
@@ -10,10 +12,15 @@ PersonalData::PersonalData(bool isMe,int acc,QStringList UserData,QWidget *paren
     isPressed = false;
     //设置窗口无边框
     setWindowFlags(Qt::FramelessWindowHint);
-    //若不是自己则不显示编辑按钮
+    //若不是自己则不显示编辑按钮且不能点击头像
     if(!isMe)
     {
+        m_isMe = isMe;
         ui->EditBtn->hide();
+    }
+    else
+    {
+        m_isMe = true;
     }
 
     m_acc = acc;
@@ -140,4 +147,19 @@ void PersonalData::on_EditBtn_clicked()
 {
     emit ChangingData(m_UserData);
     emit ClosePerData(m_acc);
+}
+
+void PersonalData::on_HeadShotBtn_clicked()
+{
+    if(m_isMe)
+    {
+        QString hsFile = QFileDialog::getOpenFileName(this,"发送图片","","Picture Files(*.jpg;*.png)");
+        qDebug() << "修改头像; " << hsFile;
+        emit ChangingHeadShot(hsFile);
+        emit ClosePerData(m_acc);
+    }
+    else
+    {
+        qDebug() << "点击好友头像";
+    }
 }

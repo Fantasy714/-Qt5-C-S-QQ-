@@ -10,6 +10,7 @@
 #include <QJsonValue>
 #include <QMessageBox>
 #include <QMetaMethod>
+#include <QTimer>
 
 #define Margin 10
 
@@ -19,11 +20,12 @@ MainInterface::MainInterface(QWidget *parent) :
 {
     ui->setupUi(this);
 
+    QDir dir;
     //创建用户本地数据文件夹
-    if(!m_dir.exists(m_path))
+    if(!dir.exists(m_path))
     {
         qDebug() << "用户数据文件夹未创建";
-        if(!m_dir.mkdir(m_path))
+        if(!dir.mkdir(m_path))
         {
             qDebug() << "用户数据文件夹创建失败!";
             return;
@@ -31,10 +33,10 @@ MainInterface::MainInterface(QWidget *parent) :
     }
 
     QString allusers = m_path + "/allusers";
-    if(!m_dir.exists(allusers))
+    if(!dir.exists(allusers))
     {
         qDebug() << "allusers数据文件夹未创建";
-        if(!m_dir.mkdir(allusers))
+        if(!dir.mkdir(allusers))
         {
             qDebug() << "allusers数据文件夹创建失败!";
             return;
@@ -63,7 +65,7 @@ MainInterface::MainInterface(QWidget *parent) :
     connect(m_log,&Login::ToAccount,this,&MainInterface::ShowAccount);
     m_log->show();
 
-    thread = new QThread(this);
+    thread = new QThread;
     //创建网络连接对象
     m_mytcp = new TcpThread;
     connect(this,&MainInterface::MainInterfaceClose,m_mytcp,&TcpThread::GetClose);
@@ -73,6 +75,7 @@ MainInterface::MainInterface(QWidget *parent) :
     connect(this,&MainInterface::sendSmsToFri,m_mytcp,&TcpThread::sendSmsToFri);
     connect(this,&MainInterface::AskForUserData,m_mytcp,&TcpThread::AskForUserData);
     connect(this,&MainInterface::ChangingUserDatas,m_mytcp,&TcpThread::ChangingUserDatas);
+    connect(this,&MainInterface::ChangingHS,m_mytcp,&TcpThread::ChangingHS);
     connect(m_log,&Login::LoginClose,m_mytcp,&TcpThread::GetClose);
     connect(m_log,&Login::LoginToServer,m_mytcp,&TcpThread::LoginToServer);
     connect(m_mytcp,&TcpThread::sendResultToLogin,m_log,&Login::GetResultFromSer);
@@ -103,7 +106,7 @@ MainInterface::MainInterface(QWidget *parent) :
 MainInterface::~MainInterface()
 {
     //如果好友列表有改动则更新好友列表本地文件
-    if(FriIsChanged)
+    /*if(FriIsChanged)
     {
         //获取好友信息
         QJsonArray jsonArr;
@@ -128,24 +131,24 @@ MainInterface::~MainInterface()
         file.open(QFile::WriteOnly | QFile::Truncate);
         file.write(doc.toJson());
         file.close();
-    }
+    }*/
     thread->quit();
     thread->wait();
     thread->deleteLater();
+    m_mytcp->deleteLater();
+    m_log->deleteLater();
     for(auto chat : m_chatWindows)
     {
-        delete chat;
+        chat->deleteLater();
     }
     for(auto pdata : m_PersonData)
     {
-        delete pdata;
+        pdata->deleteLater();
     }
     for(auto af : m_addfri)
     {
-        delete af;
+        af->deleteLater();
     }
-    delete m_mytcp;
-    delete m_log;
     delete ui;
 }
 
@@ -309,8 +312,40 @@ void MainInterface::GetResultFromSer(int type,int acc,QString nickname,QString s
             PersonalData * pd = new PersonalData(true,m_account,Datas);
             connect(pd,&PersonalData::ClosePerData,this,&MainInterface::ClosePerData);
             connect(pd,&PersonalData::ChangingData,this,&MainInterface::EditPersonalData);
+            connect(pd,&PersonalData::ChangingHeadShot,this,&MainInterface::ChangingHeadShot);
             m_PersonData.insert(m_account,pd);
             pd->show();
+        }
+        else
+        {
+            QString fnkn = uData.split("@@").at(Dnickname);
+            QString fsig = uData.split("@@").at(Dsignature);
+
+            qDebug() << result << fnkn << fsig;
+
+            //显示用户资料
+            QStringList Datas = uData.split("@@");
+            PersonalData * pd = new PersonalData(false,acc,Datas);
+            connect(pd,&PersonalData::ClosePerData,this,&MainInterface::ClosePerData);
+            m_PersonData.insert(acc,pd);
+            pd->show();
+
+            //有任何更改则更新好友列表
+            if(result != "不更新头像" || m_frinicknames[acc] != fnkn || m_frisignatures[acc] != fsig)
+            {
+                //更新好友列表
+                FriIsChanged = true;
+                if(m_frinicknames[acc] != fnkn)
+                {
+                    m_frinicknames[acc] = fnkn;
+                }
+                if(m_frisignatures[acc] != fsig)
+                {
+                    m_frinicknames[acc] + fsig;
+                }
+
+                UpdateTreeWidget();
+            }
         }
         break;
     }
@@ -675,11 +710,18 @@ void MainInterface::InitFriRitBtnMenu()
         }
     });
 
+    m_FriData = new QAction("查看资料");
+    connect(m_FriData,&QAction::triggered,[=](){
+       int acc = m_friItem->data(0,Qt::UserRole).toInt();
+       emit AskForUserData("请求好友的",acc);
+    });
+
     m_delete = new QAction(QIcon(":/lib/delete.png"),"删除好友");
     connect(m_delete,&QAction::triggered,this,&MainInterface::DelFri);
 
     m_frimenu = new QMenu(this);
     m_frimenu->addAction(m_Chat);
+    m_frimenu->addAction(m_FriData);
     m_frimenu->addAction(m_delete);
 
     //初始化分组菜单
@@ -867,6 +909,16 @@ void MainInterface::ChangingLoginFile(QString NkN, QString pwd)
     {
 
     }
+}
+
+void MainInterface::ChangingHeadShot(QString filePath)
+{
+    emit ChangingHS(m_account,filePath);
+    //更新主界面头像
+    QTimer::singleShot(1000,[=](){
+        QPixmap pix = CreatePixmap(m_headshot);
+        ui->HeadShotBtn->setIcon(QIcon(pix));
+    });
 }
 
 void MainInterface::initShadow()

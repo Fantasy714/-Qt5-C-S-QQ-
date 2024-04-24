@@ -3,6 +3,7 @@
 #include <QRegExpValidator>
 #include <QFont>
 #include <QMessageBox>
+#include <QDebug>
 
 Account* Account::m_Acc = nullptr;
 QMutex Account::m_mutex;
@@ -134,10 +135,15 @@ void Account::on_pushButton_2_clicked()
 
 void Account::on_pushButton_clicked()
 {
-    //检查账号密码是否输入
+    //检查账号密码合法性
     if(ui->lineEdit->text().isEmpty())
     {
         QMessageBox::warning(this,"警告","请输入账号!");
+        return;
+    }
+    if(ui->lineEdit->text().length() > 9)
+    {
+        QMessageBox::warning(this,"警告","账号位数不得超过9位!");
         return;
     }
     if(m_find == false)
@@ -157,11 +163,13 @@ void Account::on_pushButton_clicked()
         //在服务器返回结果前关闭按钮
         ui->pushButton->setEnabled(false);
         ui->pushButton->setStyleSheet("font-size:15px;color:black;border-style:none;border-radius:8px 8px;background-color:rgb(170,170,170);");
+        qDebug() << "找回密码";
     }
     else
     {
         AccountReq("注册",acc,pwd);
         ui->pushButton->setEnabled(false);
         ui->pushButton->setStyleSheet("font-size:15px;color:black;border-style:none;border-radius:8px 8px;background-color:rgb(170,170,170);");
+        qDebug() << "注册";
     }
 }

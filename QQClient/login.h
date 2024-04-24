@@ -11,6 +11,7 @@
 #include <QFile>
 #include <QLabel>
 #include <QHBoxLayout>
+#include "global.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class Login; }
@@ -73,14 +74,15 @@ private:
     bool Registering = false; //是否在注册界面
     bool isConnecting = false; //是否已连接服务器
     bool isFirstLogin = false; //是否是第一次登录
-    QString m_path = QCoreApplication::applicationDirPath() + "/userdata"; //保存用户数据的文件夹地址
-    QDir m_dir; //操作目录
-    QFile m_file; //操作文件
     QVector<int> m_dataLoc; //存放添加入comboBox的用户数据标号
     QStringList m_Accs; //存放用户账号
     QStringList m_Names; //存放用户名
     QStringList m_Pwds; //存放用户密码
     QStringList m_Icons; //存放用户头像位置
     QList<bool> isRemember; //记录是否记住密码
+
+    const QString m_path = QCoreApplication::applicationDirPath() + "/userdata";
+    const QString m_alluserspath = QCoreApplication::applicationDirPath() + "/userdata/allusers";
+    QString m_userpath = QCoreApplication::applicationDirPath() + "/userdata";
 };
 #endif // LOGIN_H

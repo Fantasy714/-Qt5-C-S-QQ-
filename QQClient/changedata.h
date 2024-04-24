@@ -5,6 +5,8 @@
 #include <QMouseEvent>
 #include <QGraphicsDropShadowEffect>
 #include <QPainter>
+#include "global.h"
+#include <QCoreApplication>
 
 namespace Ui {
 class ChangeData;
@@ -37,12 +39,13 @@ private slots:
 private:
     Ui::ChangeData *ui;
 
-    //保存用户资料标号
-    enum UserMsg { Dnickname = 0,Dsignature,Dsex,Dage,Dbirthday,Dlocation,Dblood_type,Dwork,Dsch_comp };
-
     QPoint m_point; //记录点击位置
     bool isPressed; //是否点下
     bool isChanged; //是否更改信息
+
+    const QString m_path = QCoreApplication::applicationDirPath() + "/userdata";
+    const QString m_alluserspath = QCoreApplication::applicationDirPath() + "/userdata/allusers";
+    QString m_userpath = QCoreApplication::applicationDirPath() + "/userdata";
 };
 
 #endif // CHANGEDATA_H

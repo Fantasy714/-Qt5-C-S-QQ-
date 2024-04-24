@@ -242,6 +242,8 @@ bool Qqsqldata::DelFriend(int acc1, int acc2)
         qDebug() << "更改好友列表失败";
         return false;
     }
+
+    return true;
 }
 
 QVector<int> Qqsqldata::ReturnFris(int acc)

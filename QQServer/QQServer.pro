@@ -16,15 +16,19 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    global.cpp \
     main.cpp \
     mainwindow.cpp \
     qqsqldata.cpp \
+    readthread.cpp \
     sendthread.cpp \
     workthread.cpp
 
 HEADERS += \
+    global.h \
     mainwindow.h \
     qqsqldata.h \
+    readthread.h \
     sendthread.h \
     workthread.h
 

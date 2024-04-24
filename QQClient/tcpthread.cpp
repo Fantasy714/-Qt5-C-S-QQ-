@@ -8,6 +8,7 @@
 #include <QtEndian>
 #include <QTime>
 #include <QCoreApplication>
+#include <QImage>
 
 TcpThread::TcpThread(QObject *parent) : QObject(parent)
 {
@@ -79,7 +80,7 @@ void TcpThread::sendSmsToFri(int acc, int targetAcc, QString MsgType, QString Ms
     MsgToJson(SendMsg,acc,targetAcc,Msg,MsgType);
 }
 
-void TcpThread::AskForUserData(QString isMe, int acc, QString size)
+void TcpThread::AskForUserData(QString isMe, int acc)
 {
     MsgToJson(AskForData,acc,-1,"",isMe);
 }
@@ -87,6 +88,172 @@ void TcpThread::AskForUserData(QString isMe, int acc, QString size)
 void TcpThread::ChangingUserDatas(int acc, QString datas)
 {
     MsgToJson(UserChangeData,acc,-1,datas,"");
+}
+
+void TcpThread::ChangingHS(int acc, QString fileN)
+{
+    CutPhoto(acc,fileN);
+    MsgToJson(UpdateHeadShot,acc);
+}
+
+void TcpThread::CutPhoto(int acc,QString path)
+{
+    QImage img;
+    if(!img.load(path))
+    {
+        qDebug() << "图片加载失败: " << path;
+        return;
+    }
+
+    int pwidth = img.width();
+    int phigh = img.height();
+    qDebug() << "图片高为:" << pwidth << "宽" << phigh;
+    QImage cimg;
+    if(pwidth == phigh)
+    {
+        cimg = img.copy();
+        qDebug() << "图片宽高:" << cimg.width() << "," << cimg.height();
+    }
+    else if(pwidth > phigh)
+    {
+        qDebug() << "截取横屏图片";
+        cimg = img.copy(QRect((pwidth - phigh)/2,0,phigh,phigh));
+        qDebug() << "图片宽高:" << cimg.width() << "," << cimg.height();
+    }
+    else
+    {
+        qDebug() << "截取竖屏图片";
+        cimg = img.copy(QRect(0,(phigh - pwidth)/2,pwidth,pwidth));
+        qDebug() << "图片宽高:" << cimg.width() << "," << cimg.height();
+    }
+
+    //头像统一设置为350*350
+    cimg = cimg.scaled(350,350,Qt::IgnoreAspectRatio,Qt::SmoothTransformation);
+    qDebug() << "图片宽高:" << cimg.width() << "," << cimg.height();
+
+    //更新图片
+    QString fileName = m_path + "/" + QString::number(acc) + "/" + QString::number(acc) + ".jpg";
+
+    //删除原来的头像
+    bool ok = QFile::remove(fileName);
+    if(!ok)
+    {
+        qDebug() << "删除头像失败";
+    }
+
+    cimg.save(fileName);
+}
+
+void TcpThread::SendFile(QString fileName,quint32 type)
+{
+    QByteArray dataPackage;
+    QDataStream out(&dataPackage,QIODevice::WriteOnly);
+    QFile file(fileName);
+    quint32 fileSize = file.size();
+
+    //获取文件名
+    QString fName = fileName.split("/").last();
+    //发送的文件头包大小
+    quint32 size = sizeof(type) + sizeof(m_TargetAcc) + sizeof(fileSize) + fName.size();
+
+    //发送文件头数据
+    out << quint16(FileInfoHead);
+    out << quint32(0);
+    out << size;
+    out << type << m_TargetAcc << fileSize << fName;
+
+    m_tcp->write(dataPackage);
+    m_tcp->waitForBytesWritten();
+    dataPackage.clear();
+
+    //发送小文件
+    if(fileSize < BufferSize)
+    {
+        //发送文件数据
+        QByteArray fileData = file.readAll();
+        file.close();
+
+        out << quint16(FileEndDataHead);
+        out << quint32(0);
+        out << quint32(fileData.size());
+        dataPackage.append(fileData);
+
+        m_tcp->write(dataPackage);
+        m_tcp->waitForBytesWritten();
+    }
+    else
+    {
+        quint32 lastPackSize = fileSize % BufferSize;
+        int SendTimes = fileSize / BufferSize;
+        if(lastPackSize == 0)
+        {
+            //如果文件大小刚好为BufferSize的整数倍
+            //将普通数据包发送次数减一，最后一次改为发送包尾，将最后一次发送数据的大小设置为BufferSize
+            SendTimes -= 1;
+            lastPackSize = BufferSize;
+            qDebug() << "总共需要发送" << SendTimes << "个数据包,文件尾数据包大小为: " << lastPackSize;
+        }
+        else
+        {
+            qDebug() << "总共需要发送" << SendTimes + 1 << "个数据包,文件尾数据包大小为: " << lastPackSize;
+        }
+
+
+        for(int i = 0; i < SendTimes; i++)
+        {
+            QByteArray fileData = file.read(BufferSize);
+
+            out << quint16(FileDataHead);
+            out << quint32(0);
+            out << quint32(BufferSize);
+            dataPackage.append(fileData);
+
+            m_tcp->write(dataPackage);
+            m_tcp->waitForBytesWritten();
+            dataPackage.clear();
+        }
+
+        QByteArray fileEnd = file.read(lastPackSize);
+        file.close();
+
+        out << quint16(FileEndDataHead);
+        out << quint32(0);
+        out << quint32(lastPackSize);
+        dataPackage.append(fileEnd);
+
+        m_tcp->write(fileEnd);
+        m_tcp->waitForBytesWritten();
+    }
+}
+
+void TcpThread::SendJson(QByteArray jsonData)
+{
+    QByteArray dataPackage;
+    QDataStream out(&dataPackage,QIODevice::WriteOnly);
+    out << quint16(JsonDataHead);
+    out << quint32(0);
+    out << quint32(jsonData.size());
+    dataPackage.append(jsonData);
+
+    m_tcp->write(dataPackage);
+    m_tcp->waitForBytesWritten();
+}
+
+void TcpThread::WriteToFile(QString fileName)
+{
+    //将数据存入文件中
+    QFile file(fileName);
+    file.open(QFile::WriteOnly);
+    file.write(m_buffer.readAll());
+    file.write(m_byteArray);
+    file.close();
+
+    m_buffer.close();
+    m_fileSize = 0;
+    m_infotype - 0;
+    m_fileName = "";
+    m_account = -1;
+    m_recvFileSize = 0;
 }
 
 void TcpThread::connectToServer()
@@ -110,6 +277,7 @@ void TcpThread::recvAccMsg(QString type,int acc, QString pwd)
     }
     else
     {
+        qDebug() << "找回密码中...";
         MsgToJson(FindPwd,acc,0,pwd);
     }
 }
@@ -132,63 +300,90 @@ void TcpThread::ConnectSuccess()
 
 void TcpThread::ReadMsgFromServer()
 {
-    unsigned int totalBytes = 0;
-    unsigned int jsonBytes = 0;
-    unsigned int recvBytes = 0;
-    QByteArray jsondata;
-    QByteArray filedata;
-
     if(m_tcp->bytesAvailable() == 0) //判断有没有数据;
     {
         qDebug() << "无数据或数据已读完";
         return;
     }
-    if(m_tcp->bytesAvailable() >= 8)//读取包头
+    //读取包头或若仍有未读取完毕的数据则跳过直接读取数据
+    if(m_tcp->bytesAvailable() >= 10 && m_type == 0)
     {
-        QByteArray head = m_tcp->read(4);
-        totalBytes = qFromBigEndian(*(int*)head.data());
-        qDebug() << "接收到数据的总长度:" << totalBytes;
-        /*
-         * 总长度构成
-         * 有文件
-         * json数据段长度___json数据段___文件数据长度
-         * 无文件
-         * json数据段长度___json数据段
-         * 因此使用时需将totalBytes减去json数据段包头才为所有有效数据的总长
-         */
-        totalBytes = totalBytes - 4;
-        qDebug() << "接收到数据的总长度减去json数据段包头长度:" << totalBytes;
-        QByteArray jsonhead = m_tcp->read(4);
-        jsonBytes = qFromBigEndian(*(int*)jsonhead.data());
-        qDebug() << "接收到的json数据长度:" << jsonBytes;
+        QByteArray bytearray = m_tcp->read(10);
+        QDataStream in(&bytearray,QIODevice::ReadOnly);
+
+        quint32 Empty;
+        in >> m_type  >> Empty >> m_totalBytes;
     }
-    else
+    else if(m_type == 0) //若未开始读取则直接返回
     {
         return;
     }
-    //如果有数据并且json数据段未读完
-    while(m_tcp->bytesAvailable() && recvBytes < jsonBytes)
+    //有数据且本次数据未读完
+    while(m_tcp->bytesAvailable() && m_recvBytes < m_totalBytes)
     {
-        jsondata.append(m_tcp->read(jsonBytes - recvBytes));
-        recvBytes = jsondata.size();
+        m_byteArray.append(m_tcp->read(m_totalBytes - m_recvBytes));
+        m_recvBytes = m_byteArray.size();
     }
-    //如果还有数据则为文件数据，没有则总长与json数据段长相同，不进入该while循环
-    while(m_tcp->bytesAvailable() && recvBytes < totalBytes)
+    //数据包读取完毕
+    if(m_recvBytes == m_totalBytes)
     {
-        filedata.append(m_tcp->read(totalBytes - recvBytes));
-        recvBytes = filedata.size() + jsonBytes;
+        qDebug() << "数据包读取完毕";
+        switch(m_type)
+        {
+        case JsonDataHead:
+            emit ParseMsg(m_byteArray);
+            break;
+        case FileInfoHead:
+            {
+                QDataStream in(&m_byteArray,QIODevice::ReadOnly);
+                in >> m_infotype >> m_account >> m_fileSize >> m_fileName;
+                m_buffer.open(QIODevice::ReadWrite);
+            }
+            break;
+        case FileDataHead:
+            {
+                m_recvFileSize += m_buffer.write(m_byteArray);
+                qDebug() << "已接收的文件数据大小: " << m_recvFileSize;
+            }
+            break;
+        case FileEndDataHead:
+            {
+                switch(m_infotype)
+                {
+                case SendMsg:
+                    {
+                        QString filePath = m_path + "/" + QString::number(m_account) + "/FileRecv/" + m_fileName;
+                        WriteToFile(filePath);
+                    }
+                    break;
+                case UpdateHeadShot:
+                    {
+                        QString filePath = m_path + "/" + QString::number(m_account) + "/" + m_fileName;
+                        WriteToFile(filePath);
+                    }
+                    break;
+                default:
+                    break;
+                }
+            }
+            break;
+        default:
+            break;
+        }
+
+        m_byteArray.clear();
+        m_type = 0;
+        m_totalBytes = 0;
+        m_recvBytes = 0;
     }
-    if(recvBytes == totalBytes)//数据包读取完毕
-    {
-        ParseMsg(jsondata,filedata);
-    }
+     //若数据未读取完则继续读取
     if(m_tcp->bytesAvailable())
     {
         ReadMsgFromServer();
     }
 }
 
-void TcpThread::ParseMsg(QByteArray data,QByteArray filedata)
+void TcpThread::ParseMsg(QByteArray data)
 {
     QJsonObject obj = QJsonDocument::fromJson(data).object();
     int type = obj.value("type").toInt();
@@ -208,6 +403,7 @@ void TcpThread::ParseMsg(QByteArray data,QByteArray filedata)
         emit sendResultToAccMsg("注册","",result);
         break;
     }
+        /*
     case LoginAcc:
     {
         qDebug() << "返回登录结果";
@@ -232,10 +428,10 @@ void TcpThread::ParseMsg(QByteArray data,QByteArray filedata)
                 QString loginD = m_file.readLine();
                 m_file.close();
                 QStringList loginDs = loginD.split("@@");
-                /*
+                *
                  * login.txt文件格式
                  * 用户昵称,头像图片文件名称,是否记住密码,若记住则为密码，否则为空
-                 */
+                 *
                 nickname = loginDs.at(0); //获取用户昵称
                 //若文件中记录为记住则为真，否则为假
                 bool fileRem = loginDs.at(2) == "记住" ? true : false;
@@ -446,9 +642,22 @@ void TcpThread::ParseMsg(QByteArray data,QByteArray filedata)
         {
             emit sendResultToMainInterFace(AskForData,-1,"","","",Datas,"",msgType);
         }
+        //否则为请求好友的
+        else
+        {
+            QString result = obj.value("result").toString();
+            if(result == "需更新头像")
+            {
+                QFile file(m_alluserspath + "/" + QString::number(acc) + ".jpg");
+                file.open(QFile::WriteOnly | QFile::Truncate);
+                file.write(filedata);
+                file.close();
+            }
+            emit sendResultToMainInterFace(AskForData,acc,"","",result,Datas,"",msgType);
+        }
 
         break;
-    }
+    }*/
     }
 }
 
@@ -470,6 +679,7 @@ void TcpThread::DisconnectFromServer()
 void TcpThread::MsgToJson(InforType type,int acc,int targetacc,QString Msg,QString MsgType)
 {
     QString fileName = "";
+    int fileNums = -1;
     QJsonObject obj;
     obj.insert("type",type);
     switch(type)
@@ -529,6 +739,9 @@ void TcpThread::MsgToJson(InforType type,int acc,int targetacc,QString Msg,QStri
             //取出文件名称
             QString fName = Msg.split("/").last();
             obj.insert("msg",fName);
+
+            fileNums = 1;
+            m_Recvaccount = targetacc;
         }
         else
         {
@@ -542,9 +755,9 @@ void TcpThread::MsgToJson(InforType type,int acc,int targetacc,QString Msg,QStri
         obj.insert("msgtype",MsgType);
         if(MsgType == "请求好友的")
         {
-            int HsSize = Msg.toInt();
-            qDebug() << "好友的头像大小为: " << HsSize;
-            obj.insert("headSize",HsSize);
+            QFileInfo info(m_alluserspath + "/" + QString::number(acc) + ".jpg");
+            qDebug() << "好友的头像大小为: " << info.size();
+            obj.insert("headSize",info.size());
         }
         break;
     }
@@ -552,41 +765,54 @@ void TcpThread::MsgToJson(InforType type,int acc,int targetacc,QString Msg,QStri
     {
         obj.insert("account",acc);
         obj.insert("userdatas",Msg);
+
+        fileNums = 1;
+        m_Recvaccount = acc;
         break;
+    }
+    case UpdateHeadShot:
+    {
+        fileName = m_path + "/" + QString::number(acc) + "/" + QString::number(acc) + ".jpg";
+        QByteArray empty;
+        qDebug() << "更新头像，bytearray大小: " << empty.size();
+        SendToServer(empty,fileName,type,1);
+        return;
     }
     }
     QJsonDocument doc(obj);
     QByteArray data = doc.toJson();
-    //将发送数据的大小转换成大端后添加表头
-    int len = qToBigEndian(data.size());
-    QByteArray senddata((char*)&len,4);
-    senddata.append(data);
 
-    SendToServer(senddata,fileName);
+    SendToServer(data,fileName,type,fileNums);
 }
 
-void TcpThread::SendToServer(QByteArray jsondata, QString fileName)
+void TcpThread::SendToServer(QByteArray jsondata, QString fileName,InforType type,int fileNums)
 {
-    QByteArray data(jsondata);
+    //若文件名不为空则为发送文件
     if(fileName != "")
     {
-        qDebug() << "要发送文件";
-        //将文件中数据读出
-        QFile file(fileName);
-        file.open(QFile::ReadOnly);
-        QByteArray fileD = file.readAll();
-        file.close();
-
-        //将文件加入待发送数据中
-        data.append(fileD);
+        if(fileNums > 1)
+        {
+            //用?号分割文件名,因为?号不能作为文件名
+            QStringList fileNames = fileName.split("?");
+            for(auto fileName : fileNames)
+            {
+                SendFile(fileName,type);
+            }
+        }
+        else
+        {
+            SendFile(fileName,type);
+        }
     }
-    //给所有数据数据添加表头
-    int size = qToBigEndian(data.size());
-    QByteArray alldata((char*)&size,4);
-    alldata.append(data);
+    QString data(jsondata);
+    qDebug() << data << "发送数据..." << jsondata;
+    if(jsondata.size() != 0)
+    {
+        SendJson(jsondata);
+    }
 
-    m_tcp->write(alldata);
-    qDebug() << "已发送信息" << data.size();
+    //发送完毕后清空
+    m_TargetAcc = 0;
 }
 
 void TcpThread::AutoConnect()

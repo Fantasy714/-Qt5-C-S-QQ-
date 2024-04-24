@@ -6,6 +6,7 @@
 #include <QMutex>
 #include <QCloseEvent>
 #include <QMessageBox>
+#include <QCoreApplication>
 
 namespace Ui {
 class FindFriends;
@@ -44,6 +45,10 @@ private:
     bool isMainWidget = false; //记录点下时是否在主窗口上而非内部控件上
     QPoint m_point; //记录鼠标点下位置
     QMessageBox MsgBox; //消息提示框
+
+    const QString m_path = QCoreApplication::applicationDirPath() + "/userdata";
+    const QString m_alluserspath = QCoreApplication::applicationDirPath() + "/userdata/allusers";
+    QString m_userpath = QCoreApplication::applicationDirPath() + "/userdata";
 };
 
 #endif // FINDFRIENDS_H

@@ -164,4 +164,5 @@ void ChangeData::on_Save_clicked()
 
     qDebug() << "Datas: " << uDatas;
     emit ChangeUserDatas(uDatas);
+    emit CloseEdit();
 }

@@ -21,6 +21,7 @@ SOURCES += \
     changedata.cpp \
     chatwindow.cpp \
     findfriends.cpp \
+    global.cpp \
     main.cpp \
     login.cpp \
     maininterface.cpp \
@@ -33,6 +34,7 @@ HEADERS += \
     changedata.h \
     chatwindow.h \
     findfriends.h \
+    global.h \
     login.h \
     maininterface.h \
     personaldata.h \

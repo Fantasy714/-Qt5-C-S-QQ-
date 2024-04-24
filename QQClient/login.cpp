@@ -208,8 +208,10 @@ void Login::isConnectingWithServer(bool onl)
 
 void Login::initUserData()
 {
-    m_dir.setPath(m_path);
-    QStringList dirNames = m_dir.entryList(QDir::Dirs);
+    QDir dir;
+    QFile file;
+    dir.setPath(m_path);
+    QStringList dirNames = dir.entryList(QDir::Dirs);
     dirNames.removeOne(".");
     dirNames.removeOne("..");
     dirNames.removeOne("allusers");
@@ -222,14 +224,14 @@ void Login::initUserData()
     {
         //qDebug() << dirName;
         m_Accs.append(dirName);
-        m_file.setFileName(m_path + "/" + dirName + "/login.txt");
-        qDebug() << m_file.fileName() << m_file.exists();
-        if(!m_file.open(QFile::ReadOnly))
+        file.setFileName(m_path + "/" + dirName + "/login.txt");
+        qDebug() << file.fileName() << file.exists();
+        if(!file.open(QFile::ReadOnly))
         {
             qDebug() << "打开用户login文件失败";
         }
-        QByteArray data = m_file.readLine();
-        m_file.close();
+        QByteArray data = file.readLine();
+        file.close();
         QString userMsg = QString(data);
         //逗号拆分用户登录信息
         QStringList Msgs = userMsg.split("@@");

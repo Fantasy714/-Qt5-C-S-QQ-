@@ -6,9 +6,7 @@
 #include <QCoreApplication>
 #include <QGraphicsDropShadowEffect>
 #include <QPainter>
-
-//保存用户资料标号
-enum UserMsg { Dnickname = 0,Dsignature,Dsex,Dage,Dbirthday,Dlocation,Dblood_type,Dwork,Dsch_comp };
+#include "global.h"
 
 namespace Ui {
 class PersonalData;
@@ -24,6 +22,7 @@ public:
 signals:
     void ClosePerData(int);
     void ChangingData(QStringList);
+    void ChangingHeadShot(QString);
 
 protected:
     void mousePressEvent(QMouseEvent *e) override;
@@ -38,17 +37,21 @@ private slots:
 
     void on_EditBtn_clicked();
 
+    void on_HeadShotBtn_clicked();
+
 private:
     Ui::PersonalData *ui;
 
     QPoint m_point; //记录点击位置
     bool isPressed; //是否点下
 
-    QString m_path = QCoreApplication::applicationDirPath() + "/userdata"; //用户数据文件夹位置
-    QString m_alluserspath = m_path + "/allusers"; //存放好友头像文件夹位置
-
+    bool m_isMe; //是否是自己的资料
     int m_acc; //账号
     QStringList m_UserData; //用户资料
+
+    const QString m_path = QCoreApplication::applicationDirPath() + "/userdata";
+    const QString m_alluserspath = QCoreApplication::applicationDirPath() + "/userdata/allusers";
+    QString m_userpath = QCoreApplication::applicationDirPath() + "/userdata";
 };
 
 #endif // PERSONALDATA_H

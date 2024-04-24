@@ -1,11 +1,8 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-#include <QtDebug>
-#include <QThreadPool>
+#include <QDebug>
 #include <QDir>
 #include <QFile>
-
-QReadWriteLock* MainWindow::mutex = new QReadWriteLock;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -13,21 +10,15 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    if(!m_dir.exists(m_path))
+    QDir dir;
+    if(!dir.exists(m_path))
     {
         qDebug() << "未创建用户数据文件夹";
-        if(!m_dir.mkdir(m_path))
+        if(!dir.mkdir(m_path))
         {
             qDebug() << "创建用户数据文件夹失败";
             return;
         }
-    }
-
-    //初始化数据库
-    m_sqldata = new Qqsqldata(this);
-    if(!m_sqldata->connectToSql()){
-        qDebug() << "数据库连接失败!";
-        return;
     }
 
     //服务器开始监听
@@ -35,6 +26,27 @@ MainWindow::MainWindow(QWidget *parent)
     m_serv->listen(QHostAddress::Any,m_port);
     ui->PlainTextEdit->appendPlainText(QString("服务器开始监听..."));
     connect(m_serv,&QTcpServer::newConnection,this,&MainWindow::ServerhasNewConnection);
+
+    m_ReadTd = new QThread;
+    m_ReadTask = new ReadThread;
+    connect(this,&MainWindow::StartRead,m_ReadTask,&ReadThread::ReadDataFromClt);
+    m_ReadTask->moveToThread(m_ReadTd);
+    m_ReadTd->start();
+
+    m_WorkTd = new QThread;
+    m_WorkTask = new WorkThread;
+    connect(m_ReadTask,&ReadThread::RecvFinished,m_WorkTask,&WorkThread::ParseMsg);
+    connect(m_WorkTask,&WorkThread::ThreadbackMsg,this,&MainWindow::getThreadMsg);
+    connect(m_WorkTask,&WorkThread::UserOnLine,this,&MainWindow::UserOnLine);
+    connect(m_WorkTask,&WorkThread::SendMsgToClt,this,&MainWindow::SendMsgToClt);
+    m_WorkTask->moveToThread(m_WorkTd);
+    m_WorkTd->start();
+
+    m_SendTd = new QThread;
+    m_SendTask = new SendThread;
+    connect(this,&MainWindow::StartWrite,m_SendTask,&SendThread::SendReply);
+    m_SendTask->moveToThread(m_WorkTd);
+    m_SendTd->start();
 }
 
 MainWindow::~MainWindow()
@@ -44,13 +56,29 @@ MainWindow::~MainWindow()
         sock->close();
         sock->deleteLater();
     }
+
+    m_ReadTd->quit();
+    m_ReadTd->wait();
+    m_ReadTd->deleteLater();
+    m_ReadTask->deleteLater();
+
+    m_WorkTd->quit();
+    m_WorkTd->wait();
+    m_WorkTd->deleteLater();
+    m_WorkTask->deleteLater();
+
+    m_SendTd->quit();
+    m_SendTd->wait();
+    m_SendTd->deleteLater();
+    m_SendTask->deleteLater();
+
     delete ui;
 }
 
 void MainWindow::ServerhasNewConnection()
 {
     QTcpSocket * sock = m_serv->nextPendingConnection();
-    auto port = sock->peerPort();
+    quint16 port = sock->peerPort();
     qDebug() << "服务器分配的端口号为:" << port;
     ui->PlainTextEdit->appendPlainText(QString("有新客户端连接到服务器,服务器分配的端口号为: " + QString::number(port)));
     connect(sock,&QTcpSocket::readyRead,this,&MainWindow::ReadMsgFromClt);
@@ -62,11 +90,9 @@ void MainWindow::ReadMsgFromClt()
 {
     //sender返回指向发送信号的对象的指针
     QTcpSocket * sock = (QTcpSocket*)sender();
-    WorkThread * WThread = new WorkThread(mutex,sock);
-    connect(WThread,&WorkThread::ThreadbackMsg,this,&MainWindow::getThreadMsg);
-    connect(WThread,&WorkThread::UserOnLine,this,&MainWindow::UserOnLine);
-    connect(WThread,&WorkThread::SendMsgToClt,this,&MainWindow::SendMsgToClt);
-    QThreadPool::globalInstance()->start(WThread);
+    //获取接收数据的套接字后开始读取
+    m_ReadTask->GetTcpSocket(sock);
+    emit StartRead();
 }
 
 void MainWindow::CltDisconnected()
@@ -75,10 +101,11 @@ void MainWindow::CltDisconnected()
     QString str = "客户端断开连接，断开连接的客户端端口号为: " + QString::number(sock->peerPort());
     //若已登陆则将在线状态恢复为离线并从在线哈希表中删除
     int acc = m_onlines.key(sock);
+    qDebug() << acc << "用户退出";
     if(acc != 0)
     {
         m_onlines.remove(acc);
-        m_sqldata->ChangeOnlineSta(acc,"离线");
+        m_sqldata.ChangeOnlineSta(acc,"离线");
         str += ", 该客户端账号为: " + QString::number(acc);
     }
     ui->PlainTextEdit->appendPlainText(str);
@@ -87,30 +114,34 @@ void MainWindow::CltDisconnected()
     sock->deleteLater();
 }
 
-void MainWindow::getThreadMsg(QString type,int account,QString msg,int target)
+void MainWindow::getThreadMsg(InforType type,int account,QString msg,int target)
 {
     //将客户端请求内容显示到服务端界面上
-    if(type == "注册")
+    switch(type)
     {
-        QString res = type + "  账号:" + QString::number(account) + "," + msg;
+    case Registration:
+    {
+        QString res = "用户注册>>>账号: " + QString::number(account) + "," + msg;
         ui->PlainTextEdit->appendPlainText(res);
+        break;
     }
-    else if(type == "找回密码")
+    case FindPwd:
     {
         if(msg == "")
         {
-            QString res = type + "  账号:" + QString::number(account) + ",找回密码失败";
+            QString res = "用户找回密码>>>账号: " + QString::number(account) + ",找回密码失败";
             ui->PlainTextEdit->appendPlainText(res);
         }
         else
         {
-            QString res = type + "  账号:" + QString::number(account) + ",找回密码成功,密码为:" + msg;
+            QString res = "用户找回密码>>>账号: " + QString::number(account) + ",找回密码成功,密码为:" + msg;
             ui->PlainTextEdit->appendPlainText(res);
         }
+        break;
     }
-    else if(type == "登录")
+    case LoginAcc:
     {
-        QString res = type + "  账号:" + QString::number(account) + "," + msg;
+        QString res = "用户登录>>>账号: " + QString::number(account) + "," + msg;
         ui->PlainTextEdit->appendPlainText(res);
         if(msg == "登录成功")
         {
@@ -120,11 +151,14 @@ void MainWindow::getThreadMsg(QString type,int account,QString msg,int target)
 
             }
         }
+        break;
     }
-    else if(type == "用户掉线重连")
+    case ChangeOnlSta:
     {
-        QString res = type + "  账号:" + QString::number(account);
+        QString res = "用户更新在线状态>>>账号:" + QString::number(account);
         ui->PlainTextEdit->appendPlainText(res);
+        break;
+    }
     }
 }
 
@@ -132,10 +166,10 @@ void MainWindow::UserOnLine(int acc, quint16 sockport)
 {
     QTcpSocket * thissock = m_sockets[sockport];
     m_onlines.insert(acc,thissock);
-    qDebug() << "成功加入在线用户哈希表";
+    qDebug() << "账号" << acc << "成功加入在线用户哈希表";
 }
 
-void MainWindow::SendMsgToClt(quint16 port, int type, int acc, int targetacc, QByteArray jsondata, QString fileName, QString msgtype)
+void MainWindow::SendMsgToClt(quint16 port, InforType type, int acc, int targetacc, QByteArray jsondata, QString fileName, QString msgtype)
 {
     QTcpSocket * sock;
     //获取目标套接字
@@ -147,6 +181,7 @@ void MainWindow::SendMsgToClt(quint16 port, int type, int acc, int targetacc, QB
     {
         sock = m_sockets[port];
     }
-    SendThread * st = new SendThread(sock,jsondata,fileName,msgtype);
-    QThreadPool::globalInstance()->start(st);
+
+    m_SendTask->GetSendMsg(sock,type,acc,jsondata,fileName,0);
+    emit StartWrite();
 }

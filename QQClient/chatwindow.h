@@ -75,6 +75,10 @@ private:
     QString m_FriHeadShot; //好友的头像地址
 
     QDateTime LastMsgTime = QDateTime::fromString("2023-11-25 18:00:00", "yyyy-MM-dd hh:mm:ss"); //最后一次发送消息的时间，初始化为较早值，这样第一次消息便直接输出时间
+
+    const QString m_path = QCoreApplication::applicationDirPath() + "/userdata";
+    const QString m_alluserspath = QCoreApplication::applicationDirPath() + "/userdata/allusers";
+    QString m_userpath = QCoreApplication::applicationDirPath() + "/userdata";
 };
 
 #endif // CHATWINDOW_H

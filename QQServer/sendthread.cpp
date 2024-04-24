@@ -1,70 +1,146 @@
 #include "sendthread.h"
-#include <QFile>
 #include <QtEndian>
+#include <QFile>
+#include <QDataStream>
 
-SendThread::SendThread(QTcpSocket * sock,QByteArray jsondata,QString fileName,QString msgtype,QObject *parent) : QObject(parent), QRunnable()
+SendThread::SendThread(QObject *parent) : QObject(parent)
+{
+
+}
+
+void SendThread::GetSendMsg(QTcpSocket *sock, InforType type, int account,  QByteArray jsonData, QString fileName, int fileNum)
 {
     m_tcp = sock;
-    m_jsonData = jsondata;
+    m_Infotype = type;
+    m_jsonData = jsonData;
     m_fileName = fileName;
-    m_MsgType = msgtype;
+    m_fileNum = fileNum;
+    m_account = account;
 }
 
-void SendThread::run()
+void SendThread::SendReply()
 {
-    SendReply(m_jsonData,m_fileName);
-}
-
-void SendThread::SendReply(QByteArray jsondata, QString fileName)
-{
-    QByteArray data(jsondata);
-    if(fileName != "")
+    //若文件名不为空则为发送文件
+    if(m_fileName != "")
     {
-        qDebug() << "要发送文件";
-        if(m_MsgType == "第一次登录")
+        if(m_fileNum > 1)
         {
-            qDebug() << "开始读取文件";
-            //拆分开文件名
-            QStringList fileNames = fileName.split("?");
-
-            //获取两个文件的文件名
-            QString fileN1 = fileNames.at(0);
-            QString fileN2 = fileNames.at(1);
-
-            //读取头像文件
-            QFile file(fileN1);
-            file.open(QFile::ReadOnly);
-            QByteArray fileD1 = file.readAll();
-            file.close();
-
-            //读取好友列表文件
-            file.setFileName(fileN2);
-            file.open(QFile::ReadOnly);
-            QByteArray fileD2 = file.readAll();
-            file.close();
-
-            //将两个文件添加入待发送数据中
-            data.append(fileD1);
-            data.append(fileD2);
+            //用?号分割文件名,因为?号不能作为文件名
+            QStringList fileNames = m_fileName.split("?");
+            for(auto fileName : fileNames)
+            {
+                SendFile(fileName);
+            }
         }
         else
         {
-            //将文件中数据读出
-            QFile file(fileName);
-            file.open(QFile::ReadOnly);
-            QByteArray fileD = file.readAll();
-            file.close();
-
-            //将文件加入待发送数据中
-            data.append(fileD);
+            SendFile(m_fileName);
         }
     }
-    //给所有数据数据添加表头
-    int size = qToBigEndian(data.size());
-    QByteArray alldata((char*)&size,4);
-    alldata.append(data);
+    if(m_jsonData.size() != 0)
+    {
+        SendJson();
+    }
 
-    m_tcp->write(alldata);
-    m_tcp->flush(); //将数据立刻发出
-    qDebug() << "已发送信息:" << data.size();
+    //发送完毕后清空
+    m_Infotype = 0;
+    m_jsonData.clear();
+    m_fileName = "";
+    m_fileNum = 0;
+    m_account = 0;
+}
+
+void SendThread::SendFile(QString fileName)
+{
+    QByteArray dataPackage;
+    QDataStream out(&dataPackage,QIODevice::WriteOnly);
+    QFile file(fileName);
+    quint32 fileSize = file.size();
+
+    //获取文件名
+    QString fName = fileName.split("/").last();
+    //发送的文件头包大小
+    quint32 size = sizeof(m_Infotype) + sizeof(m_account) + sizeof(fileSize) + fName.size();
+
+    //发送文件头数据
+    out << quint16(FileInfoHead);
+    out << quint32(0);
+    out << size;
+    out << m_Infotype << m_account << fileSize << fName;
+
+    m_tcp->write(dataPackage);
+    m_tcp->waitForBytesWritten();
+    dataPackage.clear();
+
+    //发送小文件
+    if(fileSize < BufferSize)
+    {
+        //发送文件数据
+        QByteArray fileData = file.readAll();
+        file.close();
+
+        out << quint16(FileEndDataHead);
+        out << quint32(0);
+        out << quint32(fileData.size());
+        dataPackage.append(fileData);
+
+        m_tcp->write(dataPackage);
+        m_tcp->waitForBytesWritten();
+    }
+    else
+    {
+        quint32 lastPackSize = fileSize % BufferSize;
+        int SendTimes = fileSize / BufferSize;
+        if(lastPackSize == 0)
+        {
+            //如果文件大小刚好为BufferSize的整数倍
+            //将普通数据包发送次数减一，最后一次改为发送包尾，将最后一次发送数据的大小设置为BufferSize
+            SendTimes -= 1;
+            lastPackSize = BufferSize;
+            qDebug() << "总共需要发送" << SendTimes << "个数据包,文件尾数据包大小为: " << lastPackSize;
+        }
+        else
+        {
+            qDebug() << "总共需要发送" << SendTimes + 1 << "个数据包,文件尾数据包大小为: " << lastPackSize;
+        }
+
+
+        for(int i = 0; i < SendTimes; i++)
+        {
+            QByteArray fileData = file.read(BufferSize);
+
+            out << quint16(FileDataHead);
+            out << quint32(0);
+            out << quint32(BufferSize);
+            dataPackage.append(fileData);
+
+            m_tcp->write(dataPackage);
+            m_tcp->waitForBytesWritten();
+            dataPackage.clear();
+        }
+
+        QByteArray fileEnd = file.read(lastPackSize);
+        file.close();
+
+        out << quint16(FileEndDataHead);
+        out << quint32(0);
+        out << quint32(lastPackSize);
+        dataPackage.append(fileEnd);
+
+        m_tcp->write(fileEnd);
+        m_tcp->waitForBytesWritten();
+    }
+}
+
+void SendThread::SendJson()
+{
+    QByteArray dataPackage;
+    QDataStream out(&dataPackage,QIODevice::WriteOnly);
+    out << quint16(JsonDataHead);
+    out << quint32(0);
+    out << quint32(m_jsonData.size());
+    dataPackage.append(m_jsonData);
+
+    m_tcp->write(dataPackage);
+    m_tcp->waitForBytesWritten();
 }
