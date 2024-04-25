@@ -106,7 +106,7 @@ MainInterface::MainInterface(QWidget *parent) :
 MainInterface::~MainInterface()
 {
     //如果好友列表有改动则更新好友列表本地文件
-    /*if(FriIsChanged)
+    if(FriIsChanged)
     {
         //获取好友信息
         QJsonArray jsonArr;
@@ -131,7 +131,7 @@ MainInterface::~MainInterface()
         file.open(QFile::WriteOnly | QFile::Truncate);
         file.write(doc.toJson());
         file.close();
-    }*/
+    }
     thread->quit();
     thread->wait();
     thread->deleteLater();
@@ -341,7 +341,7 @@ void MainInterface::GetResultFromSer(int type,int acc,QString nickname,QString s
                 }
                 if(m_frisignatures[acc] != fsig)
                 {
-                    m_frinicknames[acc] + fsig;
+                    m_frisignatures[acc] = fsig;
                 }
 
                 UpdateTreeWidget();

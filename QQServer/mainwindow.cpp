@@ -21,6 +21,12 @@ MainWindow::MainWindow(QWidget *parent)
         }
     }
 
+    if(!m_sqldata.connectToSql())
+    {
+        qDebug() << "数据库连接失败";
+        return;
+    }
+
     //服务器开始监听
     m_serv = new QTcpServer(this);
     m_serv->listen(QHostAddress::Any,m_port);
@@ -169,19 +175,41 @@ void MainWindow::UserOnLine(int acc, quint16 sockport)
     qDebug() << "账号" << acc << "成功加入在线用户哈希表";
 }
 
-void MainWindow::SendMsgToClt(quint16 port, InforType type, int acc, int targetacc, QByteArray jsondata, QString fileName, QString msgtype)
+void MainWindow::SendMsgToClt(quint16 port, int type, int acc, int targetacc, QByteArray jsondata, QString msgtype, QString fileName)
 {
+    //发送文件数量
+    int fileNum = 0;
+    //发送的账号,接收端依据账号和信息类型判断文件存放的文件夹
+    int sendAcc = -1;
+
     QTcpSocket * sock;
-    //获取目标套接字
-    if(msgtype == "发送好友申请" || msgtype == "成功删除好友" || msgtype == "发送图片" || type == SendMsg)
+
+    //若需要转发则要获取目标客户端套接字
+    if(msgtype == "发送好友申请" || msgtype == "成功删除好友" || type == SendMsg)
     {
         sock = m_onlines[targetacc];
     }
     else
     {
         sock = m_sockets[port];
+        if(msgtype == "第一次登录") //第一次登录需发送头像和好友json文件
+        {
+            sendAcc = acc;
+            fileNum = 2;
+        }
     }
 
-    m_SendTask->GetSendMsg(sock,type,acc,jsondata,fileName,0);
-    emit StartWrite();
+    if(msgtype == "发送好友申请" || type == SearchFri || msgtype == "需更新头像")
+    {
+        fileNum = 1;
+        if(msgtype == "需更新头像")
+        {
+            sendAcc = acc;
+        }
+    }
+
+
+
+    m_SendTask->GetSendMsg(type,sendAcc,fileName);
+    emit StartWrite(sock,jsondata,fileNum);
 }

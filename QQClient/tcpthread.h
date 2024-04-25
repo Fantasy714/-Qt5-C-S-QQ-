@@ -17,12 +17,14 @@ public:
     explicit TcpThread(QObject *parent = nullptr);
     void connectToServer(); //连接服务器
     void ConnectSuccess(); //连接服务器成功
+    void DisconnectFromServer(); //服务器断开连接
+    void AutoConnect(); //自动重连
+
     void ReadMsgFromServer(); //接收服务器传来的数据
     void ParseMsg(QByteArray); //解析传回的数据
-    void DisconnectFromServer(); //服务器断开连接
+
     void MsgToJson(InforType type,int acc = -1,int targetacc = -1,QString Msg = "",QString MsgType = ""); //将数据转化为Json数据
     void SendToServer(QByteArray jsondata, QString fileName,InforType type,int fileNums); //发送数据给服务器
-    void AutoConnect(); //自动重连
 public slots:
     void StartConnect(); //开始连接,连接失败则自动重连
     void GetClose(); //接收关闭信号
@@ -54,8 +56,7 @@ private:
     bool isConnecting = false; //是否已连接服务器
     QTimer * m_timer = nullptr; //定时器
     bool isFirstLogin; //是否是第一次登录
-    QDir m_dir; //操作文件夹
-    QFile m_file; //操作文件
+
     bool isRemember; //是否记住密码
 
     /* 发送 */
@@ -69,10 +70,9 @@ private:
 
     QBuffer m_buffer; //数据缓存
     quint32 m_infotype; //具体数据类型
+    int m_TargetAcc; //文件发送目标账号
     QString m_fileName; //文件名称
     quint32 m_fileSize; //文件大小
-    int m_TargetAcc; //文件发送目标账号
-
     int m_recvFileSize; //已接收的文件数据大小
 
     /* 操作用户数据文件夹 */

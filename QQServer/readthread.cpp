@@ -49,19 +49,23 @@ void ReadThread::ReadDataFromClt()
         switch(m_type)
         {
         case JsonDataHead:
-            emit RecvFinished(m_byteArray);
+            emit RecvFinished(m_tcp->peerPort(),m_byteArray);
             break;
         case FileInfoHead:
             {
                 QDataStream in(&m_byteArray,QIODevice::ReadOnly);
                 in >> m_infotype >> m_account >> m_fileSize >> m_fileName;
-                m_buffer.open(QIODevice::ReadWrite);
+                qDebug() << "接收类型: " << m_infotype << "接收方账号: " << m_account
+                         << "接收文件大小: " << m_fileSize << "接收文件名称: " << m_fileName;
+                m_recvFileSize = 0;
+                m_buffer.open(QIODevice::ReadWrite | QIODevice::Truncate);
             }
             break;
         case FileDataHead:
             {
                 m_recvFileSize += m_buffer.write(m_byteArray);
-                qDebug() << "已接收的文件数据大小: " << m_recvFileSize;
+                qDebug() << "已接收的文件数据大小: " << m_recvFileSize
+                         << "缓冲区大小: " << m_buffer.size();
             }
             break;
         case FileEndDataHead:
@@ -72,12 +76,14 @@ void ReadThread::ReadDataFromClt()
                     {
                         QString filePath = m_path + "/" + QString::number(m_account) + "/FileRecv/" + m_fileName;
                         WriteToFile(filePath);
+                        m_buffer.close();
                     }
                     break;
                 case UpdateHeadShot:
                     {
                         QString filePath = m_path + "/" + QString::number(m_account) + "/" + m_fileName;
                         WriteToFile(filePath);
+                        m_buffer.close();
                     }
                     break;
                 default:
@@ -103,17 +109,20 @@ void ReadThread::ReadDataFromClt()
 
 void ReadThread::WriteToFile(QString fileName)
 {
+    m_buffer.open(QIODevice::ReadOnly);
+
     //将数据存入文件中
     QFile file(fileName);
+    qDebug() << "写入文件: " << fileName << "中...";
     file.open(QFile::WriteOnly);
-    file.write(m_buffer.readAll());
-    file.write(m_byteArray);
+    if(m_buffer.size() > 0)
+    {
+        int size1 = file.write(m_buffer.readAll());
+        qDebug() << "m_buffer 写入" << size1;
+    }
+    int size2 = file.write(m_byteArray);
+    qDebug() << "m_byteArray 写入" << size2;
     file.close();
 
     m_buffer.close();
-    m_fileSize = 0;
-    m_infotype - 0;
-    m_fileName = "";
-    m_account = -1;
-    m_recvFileSize = 0;
 }

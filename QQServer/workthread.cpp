@@ -5,14 +5,17 @@
 #include <QJsonArray>
 #include <QJsonValue>
 #include <QFileInfo>
+#include <QDir>
+#include <QThread>
 
 WorkThread::WorkThread(QObject *parent) : QObject(parent)
 {
 
 }
 
-void WorkThread::ParseMsg(QByteArray data)
+void WorkThread::ParseMsg(quint16 port,QByteArray data)
 {
+    m_port = port;
     QJsonObject obj = QJsonDocument::fromJson(data).object();
     int type = obj.value("type").toInt();
     int account;
@@ -37,10 +40,10 @@ void WorkThread::ParseMsg(QByteArray data)
     case LoginAcc:
     {
         qDebug() << "客户端请求登录";
-        isFirstLogin = obj.value("isfirstlogin").toBool();
+        bool isFirst = obj.value("isfirstlogin").toBool();
         account = obj.value("account").toInt();
         QString pwd = obj.value("pwd").toString();
-        CltLogin(account,pwd);
+        CltLogin(account,pwd,isFirst);
         break;
     }
     case SearchFri:
@@ -115,73 +118,46 @@ void WorkThread::ParseMsg(QByteArray data)
     }
 }
 
-void WorkThread::ReplyToJson(InforType type, QString pwd, QString result,QString fileName,int acc,int targetacc,QString MsgType,QString Msg)
+void WorkThread::ReplyToJson(InforType type,QString Msg,QString MsgType, int acc,int targetacc, QString fileName)
 {
-    QString sendFileName = "";
     //qDebug() << "开始回应客户端";
     QJsonObject obj;
-    QString msgtype = "";
     obj.insert("type",type);
     switch(type)
     {
     case FindPwd:
     {
-        obj.insert("pwd",pwd);
+        obj.insert("pwd",Msg);
         break;
     }
     case Registration:
     {
-        obj.insert("result",result);
+        obj.insert("result",Msg);
         break;
     }
     case LoginAcc:
     {
-        obj.insert("isfirstlogin",isFirstLogin);
-        obj.insert("result",result);
-        if(result == "登录成功")
+        obj.insert("isfirstlogin",MsgType);
+        obj.insert("result",Msg);
+        if(Msg == "登录成功")
         {
             obj.insert("signature",m_userDatas.at(ensignature));
-            if(isFirstLogin)
+            if(MsgType == "第一次登录")
             {
-                //将信息类型设置为第一次登录
-                msgtype = "第一次登录";
                 //如果为第一次登录则发送账号昵称，头像和好友信息
                 obj.insert("nickname",m_userDatas.at(ennickname));
-
-                //发送头像和好友信息
-                QString fileN1 = m_path + "/" + QString::number(acc) + "/" + QString::number(acc) + ".jpg"; //头像
-                QString fileN2 = m_path + "/" + QString::number(acc) + "/" + "friends.json"; //好友列表
-                qDebug() << "filename1:" << fileN1 << "filename2:" << fileN2;
-
-                //获取图片文件大小
-                QFileInfo info(fileN1);
-                int size1 = info.size();
-
-                //获取好友列表文件大小
-                info.setFile(fileN2);
-                int size2 = info.size();
-
-                //将两个文件的大小加入json数据中
-                obj.insert("headshot_size",size1);
-                obj.insert("friends_size",size2);
-
-                //将待发送的文件名使用?（文件名无法以?命名）隔断传给发送函数
-                sendFileName = fileN1 + "?" + fileN2;
-                qDebug() << "要发送的文件名:" << sendFileName;
             }
         }
         break;
     }
     case SearchFri:
     {
-        obj.insert("result",result);
+        obj.insert("result",Msg);
         //如果查找成功则添加用户信息及头像
-        if(result == "查找成功")
+        if(Msg == "查找成功")
         {
-            sendFileName = fileName;
-
             //将需要的几个用户资料添加到字符串中并用@@隔开
-            QString uData = QString::number(acc) + "@@" + m_userDatas.at(ennickname) + "@@" +
+            QString uData = QString::number(targetacc) + "@@" + m_userDatas.at(ennickname) + "@@" +
                     m_userDatas.at(ensex) + "@@" + m_userDatas.at(enage) + "@@" + m_userDatas.at(enlocation);
 
             obj.insert("userData",uData);
@@ -190,30 +166,27 @@ void WorkThread::ReplyToJson(InforType type, QString pwd, QString result,QString
     }
     case AddFri:
     {
-        if(result == "该好友已下线")
+        if(Msg == "该好友已下线")
         {
-            obj.insert("result",result);
+            obj.insert("result",Msg);
             obj.insert("targetaccount",targetacc);
         }
         else
         {
-            msgtype = MsgType;
-            if(msgtype == "发送好友申请")
+            if(MsgType == "发送好友申请")
             {
-                sendFileName = fileName;
-
                 //将需要的几个用户资料添加到字符串中并用@@隔开
                 QString uData = QString::number(acc) + "@@" + m_userDatas.at(ennickname) + "@@" +
                         m_userDatas.at(ensex) + "@@" + m_userDatas.at(enage) + "@@" + m_userDatas.at(enlocation);
 
                 obj.insert("userData",uData);
-                obj.insert("msgtype",msgtype);
+                obj.insert("msgtype",MsgType);
                 obj.insert("yanzheng",Msg);
             }
-            else if(msgtype == "成功删除好友")
+            else if(MsgType == "成功删除好友")
             {
                 obj.insert("friacc",acc);
-                obj.insert("msgtype",msgtype);
+                obj.insert("msgtype",MsgType);
             }
         }
         break;
@@ -223,41 +196,50 @@ void WorkThread::ReplyToJson(InforType type, QString pwd, QString result,QString
         obj.insert("acc",acc);
         obj.insert("msgType",MsgType);
         obj.insert("msg",Msg);
-        msgtype = MsgType;
-        if(msgtype == "添加好友成功")
+        if(MsgType == "添加好友成功")
         {
-            obj.insert("userData",result);
-        }
-        else if(msgtype == "发送图片")
-        {
-            sendFileName = fileName;
+            qDebug() << acc << "添加" << targetacc << "成功!";
+            QStringList userDatas = sql.UserMessages(acc);
+            QString uD = userDatas.at(ennickname) + "@@" + userDatas.at(ensignature);
+            obj.insert("userData",uD);
         }
         break;
     }
     case AskForData:
     {
-        obj.insert("account",acc);
-        obj.insert("msgtype",MsgType);
-        obj.insert("userdatas",Msg);
-        if(MsgType == "请求好友的")
+
+        if(MsgType == "请求自己的")
         {
+            obj.insert("account",acc);
+            obj.insert("msgtype",MsgType);
+            obj.insert("userdatas",Msg);
+        }
+        else
+        {
+            obj.insert("account",acc);
+            obj.insert("userdatas",Msg);
+
+            //将拼接的查找类型和是否更新头像结果拆分
+            QStringList res = MsgType.split("@@");
+            QString isSelf = res.at(0);
+            QString result = res.at(1);
+
+            obj.insert("msgtype",isSelf);
             obj.insert("result",result);
-            if(result == "需更新头像")
-            {
-                sendFileName = fileName;
-            }
+
+            //将信息类型赋值为,需更新头像/不更新头像
+            MsgType = result;
+            qDebug() << MsgType;
         }
         break;
     }
     }
     QJsonDocument doc(obj);
     QByteArray reply = doc.toJson();
-    //将发送数据的大小转换成大端后添加表头
-    int len = qToBigEndian(reply.size());
-    QByteArray senddata((char*)&len,4);
-    senddata.append(reply);
 
-    emit SendMsgToClt(m_tcp->peerPort(),type,acc,targetacc,senddata,sendFileName,msgtype);
+    int IntType = (int)type;
+    emit SendMsgToClt(m_port,IntType,acc,targetacc,reply,MsgType,fileName);
+    qDebug() << "发出发送回应信号";
 }
 
 void WorkThread::recvRegistered(int acc, QString pwd)
@@ -267,19 +249,20 @@ void WorkThread::recvRegistered(int acc, QString pwd)
     if(iconName == "")
     {
         qDebug() << "账号重复,注册失败!";
-        ReplyToJson(Registration,"","注册失败");
-        ThreadbackMsg("注册",acc,"注册失败");
+        ReplyToJson(Registration,"注册失败");
+        ThreadbackMsg(Registration,acc,"注册失败");
     }
     else
     {
         qDebug() << "注册成功!";
-        ReplyToJson(Registration,"","注册成功");
-        ThreadbackMsg("注册",acc,"注册成功");
+        ReplyToJson(Registration,"注册成功");
+        ThreadbackMsg(Registration,acc,"注册成功");
         //如果注册成功则创建以该用户账号为名的文件夹与好友列表文件和头像
         QString path = m_path + "/" + QString::number(acc);
-        m_dir.mkdir(path);
+        QDir dir;
+        dir.mkdir(path);
         //创建文件接收文件夹
-        m_dir.mkdir(path + "/FileRecv");
+        dir.mkdir(path + "/FileRecv");
         //创建好友列表文件
         QString pathJ = path + "/friends.json";
         QFile file(pathJ);
@@ -333,29 +316,41 @@ void WorkThread::recvFind(int acc)
     ThreadbackMsg(FindPwd,acc,rtpwd);
 }
 
-void WorkThread::CltLogin(int acc, QString pwd)
+void WorkThread::CltLogin(int acc, QString pwd,bool isFirst)
 {
     int result = sql.LoginVerification(acc,pwd);
     if(result == -1) //账号或密码错误
     {
         qDebug() << "账号密码错误";
-        ReplyToJson(LoginAcc,"","账号密码错误");
-        ThreadbackMsg("登录",acc,"账号或密码错误");
+        ReplyToJson(LoginAcc,"账号密码错误");
+        ThreadbackMsg(LoginAcc,acc,"账号或密码错误");
     }
     else if(result == 0) //重复登录
     {
         qDebug() << "重复登录";
-        ReplyToJson(LoginAcc,"","重复登录");
-        ThreadbackMsg("登录",acc,"重复登录");
+        ReplyToJson(LoginAcc,"重复登录");
+        ThreadbackMsg(LoginAcc,acc,"重复登录");
     }
     else //登录成功
     {
         qDebug() << "登录成功";
-        quint16 port = m_tcp->peerPort(); //传递该套接字端口号给主界面
         m_userDatas = sql.UserMessages(acc); //获取用户昵称和个性签名
-        emit UserOnLine(acc,port);
-        ReplyToJson(LoginAcc,"","登录成功","",acc);
-        ThreadbackMsg("登录",acc,"登录成功");
+        emit UserOnLine(acc,m_port);
+        ThreadbackMsg(LoginAcc,acc,"登录成功");
+        if(isFirst)
+        {
+            //发送头像和好友信息
+            QString fileN1 = m_path + "/" + QString::number(acc) + "/" + QString::number(acc) + ".jpg"; //头像
+            QString fileN2 = m_path + "/" + QString::number(acc) + "/" + "friends.json"; //好友列表
+            qDebug() << "filename1:" << fileN1 << "filename2:" << fileN2;
+
+            //用?分割文件地址
+            QString fPath = fileN1 + "?" + fileN2;
+
+            ReplyToJson(LoginAcc,"登录成功","第一次登录",acc,-1,fPath);
+            return;
+        }
+        ReplyToJson(LoginAcc,"登录成功","",acc);
     }
 }
 
@@ -366,13 +361,13 @@ void WorkThread::SearchingFri(int acc)
     if(res == "离线" || res == "")
     {
         qDebug() << "查找好友失败，该账号不存在或未上线";
-        ReplyToJson(SearchFri,"","查找失败");
+        ReplyToJson(SearchFri,"查找失败");
     }
     //否则查找成功,返回用户信息
     else
     {
         m_userDatas = sql.UserMessages(acc);
-        ReplyToJson(SearchFri,"","查找成功",m_path + "/" + QString::number(acc) + "/" + QString::number(acc) + ".jpg",acc);
+        ReplyToJson(SearchFri,"查找成功","",-1,acc,m_path + "/" + QString::number(acc) + "/" + QString::number(acc) + ".jpg");
     }
 }
 
@@ -382,39 +377,31 @@ void WorkThread::CltAddFri(int acc, int targetacc, QString msgType,QString yanzh
     if(res == "离线")
     {
         qDebug() << "添加/删除好友失败，该账号已下线";
-        ReplyToJson(AddFri,"","该好友已下线","",-1,targetacc);
+        ReplyToJson(AddFri,"该好友已下线","",-1,targetacc);
         return;
     }
     //若为发送好友申请则需发送申请方头像和申请方资料
-    QString FileName = "";
     if(msgType == "发送好友申请")
     {
         qDebug() << "正在添加用户头像及资料";
-        FileName = m_path + "/" + QString::number(acc) + "/" + QString::number(acc) + ".jpg";
+        QString FileName = m_path + "/" + QString::number(acc) + "/" + QString::number(acc) + ".jpg";
         m_userDatas = sql.UserMessages(acc);
-        ReplyToJson(AddFri,"","",FileName,acc,targetacc,msgType,yanzheng);
+        ReplyToJson(AddFri,yanzheng,msgType,acc,targetacc,FileName);
     }
     else if(msgType == "同意好友申请")
     {
         //在数据库中更新这两个用户的好友列表
         sql.AddFriend(acc,targetacc);
-        //向双方发送开始聊天信息及昵称个性签名信息
-        m_userDatas = sql.UserMessages(acc);
-        QString uD = m_userDatas.at(ennickname) + "@@" + m_userDatas.at(ensignature);
-        ReplyToJson(SendMsg,"",uD,"",acc,targetacc,"添加好友成功","我们已经是好友啦，一起来聊天吧！");
-
-        m_userDatas.clear();
-        m_userDatas = sql.UserMessages(targetacc);
-        uD = m_userDatas.at(ennickname) + "@@" + m_userDatas.at(ensignature);
-        ReplyToJson(SendMsg,"",uD,"",targetacc,acc,"添加好友成功","我们已经是好友啦，一起来聊天吧！");
+        ReplyToJson(SendMsg,"我们已经是好友啦，一起来聊天吧！","添加好友成功",acc,targetacc);
+        ReplyToJson(SendMsg,"我们已经是好友啦，一起来聊天吧！","添加好友成功",targetacc,acc);
     }
     else if(msgType == "删除好友")
     {
         //在数据库中更新这两个用户的好友列表
         sql.DelFriend(acc,targetacc);
 
-        ReplyToJson(AddFri,"","","",acc,targetacc,"成功删除好友");
-        ReplyToJson(AddFri,"","","",targetacc,acc,"成功删除好友");
+        ReplyToJson(AddFri,"","成功删除好友",acc,targetacc);
+        ReplyToJson(AddFri,"","成功删除好友",targetacc,acc);
     }
 }
 
@@ -424,15 +411,15 @@ void WorkThread::CltChangeOnlSta(int acc, QString onlsta)
     if(onlineSta == "离线")
     {
         qDebug() << "用户掉线重连";
-        emit UserOnLine(acc,m_tcp->peerPort());
-        ThreadbackMsg("用户掉线重连",acc,"");
+        emit UserOnLine(acc,m_port);
+        //ThreadbackMsg("用户掉线重连",acc,"");
     }
     sql.ChangeOnlineSta(acc,onlsta);
 }
 
 void WorkThread::ForwardInformation(int acc, int targetacc, QString msgType, QString msg,QString filePath)
 {
-    ReplyToJson(SendMsg,"","",filePath,acc,targetacc,msgType,msg);
+    ReplyToJson(SendMsg,msg,msgType,acc,targetacc,filePath);
 }
 
 void WorkThread::AskForUserData(int acc, QString isSelf, int HeadShotSize)
@@ -448,7 +435,7 @@ void WorkThread::AskForUserData(int acc, QString isSelf, int HeadShotSize)
 
     if(isSelf == "请求自己的")
     {
-        ReplyToJson(AskForData,"","","",acc,-1,isSelf,datas);
+        ReplyToJson(AskForData,datas,isSelf,acc,-1);
     }
     else
     {
@@ -459,10 +446,10 @@ void WorkThread::AskForUserData(int acc, QString isSelf, int HeadShotSize)
         if(fHs != HeadShotSize) //头像大小不同即为好友已更改头像
         {
             qDebug() << "需更新好友头像";
-            ReplyToJson(AskForData,"","需更新头像",hsPath,acc,-1,isSelf,datas);
+            ReplyToJson(AskForData,datas,isSelf + "@@" + "需更新头像",acc,-1,hsPath);
             return;
         }
-        ReplyToJson(AskForData,"","不更新头像","",acc,-1,isSelf,datas);
+        ReplyToJson(AskForData,datas,isSelf + "@@" + "不更新头像",acc,-1);
     }
 }
 

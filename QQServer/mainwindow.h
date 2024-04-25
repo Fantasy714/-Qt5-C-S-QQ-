@@ -29,10 +29,10 @@ public:
 public slots:
     void getThreadMsg(InforType type,int account,QString msg,int target); //从工作线程中获取客户端的请求内容
     void UserOnLine(int acc,quint16 sockport); //用户上线则加入在线哈希表中
-    void SendMsgToClt(quint16 port,InforType type,int acc,int targetacc,QByteArray jsondata,QString fileName,QString msgtype); //发送信息给客户端
+    void SendMsgToClt(quint16 port,int type,int acc,int targetacc,QByteArray jsondata,QString msgtype,QString fileName); //发送信息给客户端
 signals:
     void StartRead(); //开始读取客户端信息
-    void StartWrite(); //开始发送信息给客户端
+    void StartWrite(QTcpSocket*,QByteArray,int); //开始发送信息给客户端
 private:
     Ui::MainWindow *ui;
 

@@ -8,50 +8,47 @@ SendThread::SendThread(QObject *parent) : QObject(parent)
 
 }
 
-void SendThread::GetSendMsg(QTcpSocket *sock, InforType type, int account,  QByteArray jsonData, QString fileName, int fileNum)
+void SendThread::GetSendMsg(int type, int account, QString fileName)
 {
-    m_tcp = sock;
-    m_Infotype = type;
-    m_jsonData = jsonData;
-    m_fileName = fileName;
-    m_fileNum = fileNum;
+    m_Infotype = (InforType)type;
     m_account = account;
+    m_fileName = fileName;
 }
 
-void SendThread::SendReply()
+void SendThread::SendReply(QTcpSocket * sock,QByteArray jsonData,int fileNum)
 {
     //若文件名不为空则为发送文件
     if(m_fileName != "")
     {
-        if(m_fileNum > 1)
+        if(fileNum > 1)
         {
             //用?号分割文件名,因为?号不能作为文件名
             QStringList fileNames = m_fileName.split("?");
             for(auto fileName : fileNames)
             {
-                SendFile(fileName);
+                SendFile(sock,fileName);
             }
         }
         else
         {
-            SendFile(m_fileName);
+            SendFile(sock,m_fileName);
         }
     }
-    if(m_jsonData.size() != 0)
+    if(jsonData.size() != 0)
     {
-        SendJson();
+        SendJson(sock,jsonData);
     }
 
+    qDebug() << sock->peerPort() << ":发送完毕" << jsonData;
     //发送完毕后清空
     m_Infotype = 0;
-    m_jsonData.clear();
     m_fileName = "";
-    m_fileNum = 0;
-    m_account = 0;
+    m_account = -1;
 }
 
-void SendThread::SendFile(QString fileName)
+void SendThread::SendFile(QTcpSocket * sock,QString fileName)
 {
+    qDebug() << "正在发送文件...";
     QByteArray dataPackage;
     QDataStream out(&dataPackage,QIODevice::WriteOnly);
     QFile file(fileName);
@@ -59,8 +56,8 @@ void SendThread::SendFile(QString fileName)
 
     //获取文件名
     QString fName = fileName.split("/").last();
-    //发送的文件头包大小
-    quint32 size = sizeof(m_Infotype) + sizeof(m_account) + sizeof(fileSize) + fName.size();
+    //发送的文件头包大小 (QString用QDataStream序列化其大小会*2后+4)
+    quint32 size = sizeof(m_Infotype) + sizeof(m_account) + sizeof(fileSize) + fName.size() * 2 + 4;
 
     //发送文件头数据
     out << quint16(FileInfoHead);
@@ -68,24 +65,32 @@ void SendThread::SendFile(QString fileName)
     out << size;
     out << m_Infotype << m_account << fileSize << fName;
 
-    m_tcp->write(dataPackage);
-    m_tcp->waitForBytesWritten();
+    sock->write(dataPackage);
+    sock->waitForBytesWritten();
     dataPackage.clear();
 
+    file.open(QFile::ReadOnly);
     //发送小文件
     if(fileSize < BufferSize)
     {
+        qDebug() << "发送小文件";
         //发送文件数据
         QByteArray fileData = file.readAll();
         file.close();
 
-        out << quint16(FileEndDataHead);
-        out << quint32(0);
-        out << quint32(fileData.size());
+        /*
+        将QDataStream对象所关联的QByteArray对象清空后，用QDataStream对象去继续写入数据到QByteArray对象中，
+        结果并不如预期那样从位置0开始写入，而是从之前的位置开始写入，前面的数据呈现未定义状态（QBuffer有一样的问题）
+        */
+        QDataStream fileEndOut(&dataPackage,QIODevice::WriteOnly);
+
+        fileEndOut << quint16(FileEndDataHead);
+        fileEndOut << quint32(0);
+        fileEndOut << quint32(fileData.size());
         dataPackage.append(fileData);
 
-        m_tcp->write(dataPackage);
-        m_tcp->waitForBytesWritten();
+        sock->write(dataPackage);
+        sock->waitForBytesWritten();
     }
     else
     {
@@ -108,39 +113,42 @@ void SendThread::SendFile(QString fileName)
         for(int i = 0; i < SendTimes; i++)
         {
             QByteArray fileData = file.read(BufferSize);
+            QDataStream fileDataOut(&dataPackage,QIODevice::WriteOnly);
 
-            out << quint16(FileDataHead);
-            out << quint32(0);
-            out << quint32(BufferSize);
+            fileDataOut << quint16(FileDataHead);
+            fileDataOut << quint32(0);
+            fileDataOut << quint32(BufferSize);
             dataPackage.append(fileData);
 
-            m_tcp->write(dataPackage);
-            m_tcp->waitForBytesWritten();
+            sock->write(dataPackage);
+            sock->waitForBytesWritten();
             dataPackage.clear();
         }
 
         QByteArray fileEnd = file.read(lastPackSize);
         file.close();
 
-        out << quint16(FileEndDataHead);
-        out << quint32(0);
-        out << quint32(lastPackSize);
+        QDataStream fileEndOut(&dataPackage,QIODevice::WriteOnly);
+        fileEndOut << quint16(FileEndDataHead);
+        fileEndOut << quint32(0);
+        fileEndOut << quint32(lastPackSize);
         dataPackage.append(fileEnd);
 
-        m_tcp->write(fileEnd);
-        m_tcp->waitForBytesWritten();
+        sock->write(dataPackage);
+        sock->waitForBytesWritten();
     }
 }
 
-void SendThread::SendJson()
+void SendThread::SendJson(QTcpSocket * sock,QByteArray jsonData)
 {
+    qDebug() << "正在发送Json数据";
     QByteArray dataPackage;
     QDataStream out(&dataPackage,QIODevice::WriteOnly);
     out << quint16(JsonDataHead);
     out << quint32(0);
-    out << quint32(m_jsonData.size());
-    dataPackage.append(m_jsonData);
+    out << quint32(jsonData.size());
+    dataPackage.append(jsonData);
 
-    m_tcp->write(dataPackage);
-    m_tcp->waitForBytesWritten();
+    sock->write(dataPackage);
+    sock->waitForBytesWritten();
 }

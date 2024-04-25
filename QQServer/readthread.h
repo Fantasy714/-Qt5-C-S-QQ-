@@ -18,7 +18,7 @@ public:
     void WriteToFile(QString fileName); //写入文件
 
 signals:
-    void RecvFinished(QByteArray byteArray);
+    void RecvFinished(quint16 port,QByteArray byteArray);
 
 private:
     QTcpSocket * m_tcp;
