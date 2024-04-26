@@ -39,7 +39,7 @@ AddFriend::AddFriend(bool type,QStringList gn, QStringList umsg, QString yanzhen
     m_location = umsg.at(enlocation);
 
     //将用户信息显示到界面上
-    QPixmap pix = CreatePixmap(m_alluserspath + "/" + QString::number(m_acc) + ".jpg");
+    QPixmap pix = Global::CreateHeadShot(Global::AppAllUserPath() + "/" + QString::number(m_acc) + ".jpg");
     ui->HeadshotLab->setPixmap(pix);
     ui->AccLab->setText(QString::number(m_acc));
     ui->NickNameLab->setText(m_nickname);
@@ -89,31 +89,6 @@ void AddFriend::mouseReleaseEvent(QMouseEvent *event)
 {
     //释放时将bool值恢复false
     isMainWidget = false;
-}
-
-QPixmap AddFriend::CreatePixmap(QString picPath)
-{
-    QPixmap src(picPath);
-    QPixmap pix(src.width(),src.height());
-
-    //设置图片透明
-    pix.fill(Qt::transparent);
-
-    QPainter painter(&pix);
-    //设置图片边缘抗锯齿，指示引擎应使用平滑像素图变换算法绘制图片
-    painter.setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
-
-    QPainterPath path;
-    //设置圆形半径，取图片较小边长作为裁切半径
-    int radius = src.width() > src.height() ? src.height()/2 : src.width()/2;
-    //绘制裁切区域的大小
-    path.addEllipse(src.rect().center(),radius,radius);
-    //设置裁切区域
-    painter.setClipPath(path);
-    //把源图片的内容绘制到创建的pixmap上，非裁切区域内容不显示
-    painter.drawPixmap(pix.rect(),src);
-
-    return pix;
 }
 
 void AddFriend::on_NoBtn_clicked()

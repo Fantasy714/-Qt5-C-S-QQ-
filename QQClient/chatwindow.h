@@ -3,11 +3,11 @@
 
 #include <QWidget>
 #include <QMouseEvent>
-#include <QCoreApplication>
 #include <QListWidgetItem>
 #include <QDateTime>
 #include <QPainter>
 #include <QGraphicsDropShadowEffect>
+#include "global.h"
 
 //信息类型
 enum MsgType { itsTime = 500, itsMsg, itsPicture, itsFile };
@@ -34,7 +34,7 @@ class ChatWindow : public QWidget
     Q_OBJECT
 
 public:
-    explicit ChatWindow(int acc,int targetAcc,QString nickN,QWidget *parent = nullptr);
+    explicit ChatWindow(int targetAcc,QString nickN,QWidget *parent = nullptr);
     ~ChatWindow();
     void FriendSendMsg(bool isMe,MsgType MsgType,QString Msg); //添加消息进消息框中
 protected:
@@ -44,7 +44,6 @@ protected:
     void mouseMoveEvent(QMouseEvent *e) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
     void mouseDoubleClickEvent(QMouseEvent *event) override;
-    QPixmap CreatePixmap(QString picPath); //返回圆形头像
     QWidget* CreateWidget(bool isMe,MsgType MsgType,QString Msg); //创建自定义item
     int returnItemHeight(MsgType MsgType,int wLgh = -1); //返回item高度
     void ChangeCurSor(const QPoint &p); //更改鼠标样式
@@ -66,19 +65,11 @@ private:
 
     bool isMaxed = false; //是最大化状态，默认不是
 
-    int m_account; //自己的账号
     int m_targetAcc; //好友账号
     QString m_nickname; //好友昵称
-
-    QString m_Mypath; //用户数据文件夹位置
-    QString m_MyHeadShot; //自己的头像地址
     QString m_FriHeadShot; //好友的头像地址
 
     QDateTime LastMsgTime = QDateTime::fromString("2023-11-25 18:00:00", "yyyy-MM-dd hh:mm:ss"); //最后一次发送消息的时间，初始化为较早值，这样第一次消息便直接输出时间
-
-    const QString m_path = QCoreApplication::applicationDirPath() + "/userdata";
-    const QString m_alluserspath = QCoreApplication::applicationDirPath() + "/userdata/allusers";
-    QString m_userpath = QCoreApplication::applicationDirPath() + "/userdata";
 };
 
 #endif // CHATWINDOW_H

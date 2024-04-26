@@ -10,6 +10,9 @@
 #include <QMessageBox>
 #include <QTimer>
 #include <QPainter>
+#include <QLabel>
+#include <QHBoxLayout>
+#include <QDir>
 
 Login::Login(QWidget *parent)
     : QWidget(parent)
@@ -142,7 +145,7 @@ void Login::on_activatedSysTrayIcon(QSystemTrayIcon::ActivationReason reason)
 
 void Login::on_FindBtn_clicked()
 {
-    if(!isConnecting)
+    if(!Global::isConnecting)
     {
         //如果当前未显示提示信息则显示提示五秒钟
         if(ui->TipsWidget->isHidden())
@@ -161,7 +164,7 @@ void Login::on_FindBtn_clicked()
 
 void Login::on_NewAcBtn_clicked()
 {
-    if(!isConnecting)
+    if(!Global::isConnecting)
     {
         if(ui->TipsWidget->isHidden())
         {
@@ -200,31 +203,24 @@ void Login::ShowWindow(bool fromAcc)
     }
 }
 
-void Login::isConnectingWithServer(bool onl)
-{
-    //更改连接状态
-    isConnecting = onl;
-}
-
 void Login::initUserData()
 {
     QDir dir;
     QFile file;
-    dir.setPath(m_path);
+    dir.setPath(Global::AppWorkPath());
     QStringList dirNames = dir.entryList(QDir::Dirs);
     dirNames.removeOne(".");
     dirNames.removeOne("..");
     dirNames.removeOne("allusers");
     if(dirNames.isEmpty())
     {
-        QPixmap pix = CreatePixmap(":/lib/default.jpg");
+        QPixmap pix = Global::CreateHeadShot(":/lib/default.jpg");
         ui->label->setPixmap(pix);
     }
     for(auto dirName : dirNames)
     {
-        //qDebug() << dirName;
         m_Accs.append(dirName);
-        file.setFileName(m_path + "/" + dirName + "/login.txt");
+        file.setFileName(Global::AppWorkPath() + "/" + dirName + "/login.txt");
         qDebug() << file.fileName() << file.exists();
         if(!file.open(QFile::ReadOnly))
         {
@@ -235,14 +231,8 @@ void Login::initUserData()
         QString userMsg = QString(data);
         //逗号拆分用户登录信息
         QStringList Msgs = userMsg.split("@@");
-        /* |***测试***| 查看添加了哪些数据
-        for(auto msg : Msgs)
-        {
-            qDebug() << msg;
-        }
-        */
         m_Names.append(Msgs.at(0));
-        m_Icons.append(m_path + "/" + dirName + "/" + Msgs.at(1));
+        m_Icons.append(Global::AppWorkPath() + "/" + dirName + "/" + Msgs.at(1));
         QString isRem = Msgs.at(2);
         if(isRem == "记住")
         {
@@ -275,7 +265,7 @@ void Login::initComboBox()
 
         //设置头像
         QLabel * label1 = new QLabel;
-        QPixmap pix = CreatePixmap(m_Icons.at(i));
+        QPixmap pix = Global::CreateHeadShot(m_Icons.at(i));
         label1->setPixmap(pix);
         label1->setFixedSize(40,40);
         label1->setScaledContents(true);
@@ -326,7 +316,7 @@ void Login::initComboBox()
                //如果将账号全部删除则设置为初始状态
                if(m_dataLoc.length() == 0)
                {
-                   QPixmap pix = CreatePixmap(":/lib/default.jpg");
+                   QPixmap pix = Global::CreateHeadShot(":/lib/default.jpg");
                    ui->label->setPixmap(pix);
                    ui->AccountLine->setText("");
                    ui->PwdLine->setText("");
@@ -354,31 +344,6 @@ void Login::closeSystemIcon()
     m_sysIcon->hide();
 }
 
-QPixmap Login::CreatePixmap(QString picPath)
-{
-    QPixmap src(picPath);
-    QPixmap pix(src.width(),src.height());
-
-    //设置图片透明
-    pix.fill(Qt::transparent);
-
-    QPainter painter(&pix);
-    //设置图片边缘抗锯齿，指示引擎应使用平滑像素图变换算法绘制图片
-    painter.setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
-
-    QPainterPath path;
-    //设置圆形半径，取图片较小边长作为裁切半径
-    int radius = src.width() > src.height() ? src.height()/2 : src.width()/2;
-    //绘制裁切区域的大小
-    path.addEllipse(src.rect().center(),radius,radius);
-    //设置裁切区域
-    painter.setClipPath(path);
-    //把源图片的内容绘制到创建的pixmap上，非裁切区域内容不显示
-    painter.drawPixmap(pix.rect(),src);
-
-    return pix;
-}
-
 void Login::GetResultFromSer(QString result)
 {
     if(result == "账号密码错误")
@@ -401,17 +366,6 @@ void Login::GetResultFromSer(QString result)
 
 void Login::on_pushButton_clicked()
 {
-    //检查是否登录服务器
-    if(!isConnecting)
-    {
-        if(ui->TipsWidget->isHidden())
-        {
-            ui->tipsLabel->setText("登录超时，请检查网络或本机防火墙设置。");
-            ui->TipsWidget->show();
-            QTimer::singleShot(5000,ui->TipsWidget,SLOT(hide()));
-        }
-        return;
-    }
     //获取用户输入账号密码
     QString acc = ui->AccountLine->text();
     QString pwd = ui->PwdLine->text();
@@ -436,12 +390,28 @@ void Login::on_pushButton_clicked()
         }
         return;
     }
+    //检查是否登录服务器
+    if(!Global::isConnecting)
+    {
+        if(ui->TipsWidget->isHidden())
+        {
+            ui->tipsLabel->setText("登录超时，请检查网络或本机防火墙设置。");
+            ui->TipsWidget->show();
+            QTimer::singleShot(5000,ui->TipsWidget,SLOT(hide()));
+        }
+        return;
+    }
     //如果用户数据中无该账号记录则为第一次登录
     if(m_Accs.indexOf(acc) == -1)
     {
-        isFirstLogin = true;
+        Global::isFirstLogin = true;
     }
-    emit LoginToServer(isFirstLogin,acc.toInt(),pwd,ui->RememberCheck->isChecked());
+
+    //设置账号密码和是否记住密码
+    Global::isRemember = ui->RememberCheck->isChecked();
+    Global::InitLoginUserInfo(acc.toInt(),pwd);
+
+    emit LoginToServer();
 }
 
 //选择ComboBox时改变账号头像等信息
@@ -450,10 +420,10 @@ void Login::on_comboBox_currentIndexChanged(int index)
     if(index >= 0)
     {
         //点击已存储账号后设置为非第一次登录
-        isFirstLogin = false;
+        Global::isFirstLogin = false;
 
         //qDebug() << index;
-        QPixmap pix = CreatePixmap(m_Icons.at(index));
+        QPixmap pix = Global::CreateHeadShot(m_Icons.at(index));
         ui->label->setPixmap(pix);
         ui->AccountLine->setText(m_Accs.at(index));
         ui->PwdLine->setText(m_Pwds.at(index));
@@ -475,12 +445,12 @@ void Login::on_AccountLine_textChanged(const QString &arg1)
     int loc = m_Accs.indexOf(arg1);
     if(loc == -1)
     {
-        QPixmap pix = CreatePixmap(":/lib/default.jpg");
+        QPixmap pix = Global::CreateHeadShot(":/lib/default.jpg");
         ui->label->setPixmap(pix);
     }
     else
     {
-        QPixmap pix = CreatePixmap(m_Icons.at(loc));
+        QPixmap pix = Global::CreateHeadShot(m_Icons.at(loc));
         ui->label->setPixmap(pix);
     }
 }

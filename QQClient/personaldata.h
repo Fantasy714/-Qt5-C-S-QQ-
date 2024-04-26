@@ -3,7 +3,6 @@
 
 #include <QWidget>
 #include <QMouseEvent>
-#include <QCoreApplication>
 #include <QGraphicsDropShadowEffect>
 #include <QPainter>
 #include "global.h"
@@ -22,15 +21,15 @@ public:
 signals:
     void ClosePerData(int);
     void ChangingData(QStringList);
-    void ChangingHeadShot(QString);
+    void ChangingHeadShot();
 
 protected:
     void mousePressEvent(QMouseEvent *e) override;
     void mouseMoveEvent(QMouseEvent *e) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
-    QPixmap CreatePixmap(QString picPath); //返回圆形头像
     void initShadow(); //初始化窗口边框阴影
     void paintEvent(QPaintEvent *event) override;
+    void CutPhoto(QString path); //剪切图片
 
 private slots:
     void on_CloseBtn_clicked();
@@ -48,10 +47,6 @@ private:
     bool m_isMe; //是否是自己的资料
     int m_acc; //账号
     QStringList m_UserData; //用户资料
-
-    const QString m_path = QCoreApplication::applicationDirPath() + "/userdata";
-    const QString m_alluserspath = QCoreApplication::applicationDirPath() + "/userdata/allusers";
-    QString m_userpath = QCoreApplication::applicationDirPath() + "/userdata";
 };
 
 #endif // PERSONALDATA_H

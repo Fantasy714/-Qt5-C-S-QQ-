@@ -80,7 +80,7 @@ void WorkThread::ParseMsg(quint16 port,QByteArray data)
         if(msgType == "发送图片")
         {
             QString fileN = obj.value("msg").toString();
-            QString filePath = m_path + "/" + QString::number(targetAcc) + "/FileRecv/" + fileN;
+            QString filePath = Global::UserFilePath(targetAcc) + fileN;
             qDebug() << "转发图片中...文件路径: " << filePath << "文件名: " << fileN;
             ForwardInformation(acc,targetAcc,msgType,fileN,filePath);
             break;
@@ -258,7 +258,7 @@ void WorkThread::recvRegistered(int acc, QString pwd)
         ReplyToJson(Registration,"注册成功");
         ThreadbackMsg(Registration,acc,"注册成功");
         //如果注册成功则创建以该用户账号为名的文件夹与好友列表文件和头像
-        QString path = m_path + "/" + QString::number(acc);
+        QString path = Global::UserPath(acc);
         QDir dir;
         dir.mkdir(path);
         //创建文件接收文件夹
@@ -285,15 +285,15 @@ void WorkThread::recvRegistered(int acc, QString pwd)
 
         QJsonDocument doc(jsarr);
         file.write(doc.toJson());
-
         file.close();
+
         //读取服务器随机分配的头像图片
         file.setFileName(iconName);
         file.open(QFile::ReadOnly);
         QByteArray pic = file.readAll();
         file.close();
         //创建用户头像
-        file.setFileName(path + "/" + QString::number(acc) + ".jpg");
+        file.setFileName(Global::UserHeadShot(acc));
         file.open(QFile::WriteOnly);
         file.write(pic);
         file.close();
@@ -340,8 +340,8 @@ void WorkThread::CltLogin(int acc, QString pwd,bool isFirst)
         if(isFirst)
         {
             //发送头像和好友信息
-            QString fileN1 = m_path + "/" + QString::number(acc) + "/" + QString::number(acc) + ".jpg"; //头像
-            QString fileN2 = m_path + "/" + QString::number(acc) + "/" + "friends.json"; //好友列表
+            QString fileN1 = Global::UserHeadShot(acc); //头像
+            QString fileN2 = Global::UserPath(acc) + "/" + "friends.json"; //好友列表
             qDebug() << "filename1:" << fileN1 << "filename2:" << fileN2;
 
             //用?分割文件地址
@@ -367,7 +367,7 @@ void WorkThread::SearchingFri(int acc)
     else
     {
         m_userDatas = sql.UserMessages(acc);
-        ReplyToJson(SearchFri,"查找成功","",-1,acc,m_path + "/" + QString::number(acc) + "/" + QString::number(acc) + ".jpg");
+        ReplyToJson(SearchFri,"查找成功","",-1,acc,Global::UserHeadShot(acc));
     }
 }
 
@@ -384,9 +384,8 @@ void WorkThread::CltAddFri(int acc, int targetacc, QString msgType,QString yanzh
     if(msgType == "发送好友申请")
     {
         qDebug() << "正在添加用户头像及资料";
-        QString FileName = m_path + "/" + QString::number(acc) + "/" + QString::number(acc) + ".jpg";
         m_userDatas = sql.UserMessages(acc);
-        ReplyToJson(AddFri,yanzheng,msgType,acc,targetacc,FileName);
+        ReplyToJson(AddFri,yanzheng,msgType,acc,targetacc,Global::UserHeadShot(acc));
     }
     else if(msgType == "同意好友申请")
     {
@@ -439,7 +438,7 @@ void WorkThread::AskForUserData(int acc, QString isSelf, int HeadShotSize)
     }
     else
     {
-        QString hsPath = m_path + "/" + QString::number(acc) + "/" + QString::number(acc) + ".jpg";
+        QString hsPath = Global::UserHeadShot(acc);
         QFileInfo info(hsPath);
         int fHs = info.size();
         qDebug() << "该用户本地的好友头像大小: " << HeadShotSize << "服务器保存的好友头像大小: " << fHs;

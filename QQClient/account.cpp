@@ -56,7 +56,8 @@ Account* Account::GetAccount(bool find)
     return m_Acc;
 }
 
-void Account::isFind(bool find)
+void Account::
+isFind(bool find)
 {
     //若为找回密码则更改界面
     if(find == true)
@@ -83,9 +84,9 @@ void Account::closeEvent(QCloseEvent *event)
     event->ignore();
 }
 
-void Account::recvResultFromTcp(QString type, QString pwd, QString result)
+void Account::recvResultFromTcp(int type, QString pwd, QString result)
 {
-    if(type == "找回密码")
+    if(type == FindPwd)
     {
         if(pwd == "")
         {
@@ -159,7 +160,7 @@ void Account::on_pushButton_clicked()
     QString pwd = ui->lineEdit_2->text();
     if(m_find)
     {
-        AccountReq("找回密码",acc);
+        AccountReq(FindPwd,acc);
         //在服务器返回结果前关闭按钮
         ui->pushButton->setEnabled(false);
         ui->pushButton->setStyleSheet("font-size:15px;color:black;border-style:none;border-radius:8px 8px;background-color:rgb(170,170,170);");
@@ -167,7 +168,7 @@ void Account::on_pushButton_clicked()
     }
     else
     {
-        AccountReq("注册",acc,pwd);
+        AccountReq(Registration,acc,pwd);
         ui->pushButton->setEnabled(false);
         ui->pushButton->setStyleSheet("font-size:15px;color:black;border-style:none;border-radius:8px 8px;background-color:rgb(170,170,170);");
         qDebug() << "注册";

@@ -3,7 +3,6 @@
 
 #include <QWidget>
 #include <QMouseEvent>
-#include <QCoreApplication>
 #include "global.h"
 
 namespace Ui {
@@ -17,10 +16,10 @@ class AddFriend : public QWidget
 public:
     explicit AddFriend(bool type,QStringList gn, QStringList umsg,QString yanzheng = "", QWidget *parent = nullptr);
     ~AddFriend();
+protected:
     void mousePressEvent(QMouseEvent *e) override;
     void mouseMoveEvent(QMouseEvent *e) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
-    QPixmap CreatePixmap(QString picPath); //返回圆形头像
 signals:
     void CloseAddFriend(QString type = "",int acc = -1, QString GpNa = "",QString yanzheng = ""); //向主窗口发送好友申请操作信息
 
@@ -44,10 +43,6 @@ private:
     QString m_sex; //性别
     QString m_age; //年龄
     QString m_location; //所在地
-
-    const QString m_path = QCoreApplication::applicationDirPath() + "/userdata";
-    const QString m_alluserspath = QCoreApplication::applicationDirPath() + "/userdata/allusers";
-    QString m_userpath = QCoreApplication::applicationDirPath() + "/userdata";
 };
 
 #endif // ADDFRIEND_H

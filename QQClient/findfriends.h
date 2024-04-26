@@ -6,7 +6,6 @@
 #include <QMutex>
 #include <QCloseEvent>
 #include <QMessageBox>
-#include <QCoreApplication>
 
 namespace Ui {
 class FindFriends;
@@ -21,6 +20,7 @@ public:
     ~FindFriends();
     FindFriends(FindFriends &) = delete; //单例模式(删除拷贝构造和赋值构造)
     FindFriends& operator=(const FindFriends&) = delete;
+protected:
     void mousePressEvent(QMouseEvent *e) override;
     void mouseMoveEvent(QMouseEvent *e) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
@@ -45,10 +45,6 @@ private:
     bool isMainWidget = false; //记录点下时是否在主窗口上而非内部控件上
     QPoint m_point; //记录鼠标点下位置
     QMessageBox MsgBox; //消息提示框
-
-    const QString m_path = QCoreApplication::applicationDirPath() + "/userdata";
-    const QString m_alluserspath = QCoreApplication::applicationDirPath() + "/userdata/allusers";
-    QString m_userpath = QCoreApplication::applicationDirPath() + "/userdata";
 };
 
 #endif // FINDFRIENDS_H

@@ -81,7 +81,10 @@ void ChangeData::mousePressEvent(QMouseEvent *e)
 {
     if(e->button() == Qt::LeftButton)
     {
-        isPressed = true;
+        if(e->pos().y() < 35 || e->pos().y() > 690)
+        {
+            isPressed = true;
+        }
         m_point = e->globalPos() - this->frameGeometry().topLeft();
     }
 }

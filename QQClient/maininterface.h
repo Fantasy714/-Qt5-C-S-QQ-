@@ -6,8 +6,6 @@
 #include "account.h"
 #include "tcpthread.h"
 #include "addfriend.h"
-#include <QCoreApplication>
-#include <QDir>
 #include <QSystemTrayIcon>
 #include <QMenu>
 #include <QMouseEvent>
@@ -33,46 +31,56 @@ public:
     ~MainInterface();
 public slots:
     void ShowAccount(bool); //显示注册界面
-    void GetResultFromSer(int type,int acc,QString nickname,QString signature,QString result,QString uData,QString Msg,QString MsgType); //获取服务器返回的数据
-    void initSystemIcon(); //初始化系统托盘
-    void on_activatedSysTrayIcon(QSystemTrayIcon::ActivationReason reason); //点击托盘图标
-    void ShowFindFri(); //显示查找好友窗口
-    void GetFriendsData(); //从本地数据文件中获取好友列表信息
-    void InitTreeWidget(); //初始化好友列表TreeWidget
-    void UpdateTreeWidget(); //更新好友列表TreeWidget
-    void InitFriRitBtnMenu(); //初始化好友列表右键菜单
-    void SearchingAcc(QString acc); //查找账号信息
-    void AddFriendClosed(QString type,int acc,QString GpNa,QString yanzheng); //接收添加好友界面关闭信号
+
+    /* 网络相关 */
+    void GetResultFromSer(int type,int targetAcc,QString uData,QString Msg,QString MsgType); //获取服务器返回的数据
     void Reconnection(bool onl); //掉线时重新连接上线
-    void SendMsgToFri(int,MsgType,QString); //发送信息给好友
-    void DelFri(); //删除好友
+
+    /* 好友添加相关 */
+    void ShowFindFri(); //显示查找好友窗口
+    void SearchingAcc(QString acc); //查找账号信息
+    void AddFriendClosed(QString type,int targetacc,QString GpNa,QString yanzheng); //接收添加好友界面关闭信号
+
+    /* 好友聊天相关 */
     ChatWindow* showFriChatWindow(int acc); //显示好友聊天窗口
+    void SendMsgToFri(int,MsgType,QString); //发送信息给好友
+
+    /* 更改用户信息 */
+    void ChangingLoginFile(QString NkN = "", QString pwd = ""); //更改登录文件
+    void ChangingHeadShot(); //修改头像
+
+    /* 个人资料 */
     void ClosePerData(int); //关闭个人资料窗口
     void EditPersonalData(QStringList); //修改个人资料窗口
-    void CloseEdit(); //关闭编辑窗口
     void ChangeUserDatas(QString); //更改用户资料
-    void ChangingLoginFile(QString NkN = "", QString pwd = ""); //更改登录文件
-    void ChangingHeadShot(QString filePath); //修改头像
+    void CloseEdit(); //关闭编辑窗口
 protected:
+    /* 系统托盘 */
+    void initSystemIcon(); //初始化系统托盘
+    void on_activatedSysTrayIcon(QSystemTrayIcon::ActivationReason reason); //点击托盘图标
+
+    //界面相关
     void initShadow(); //初始化窗口边框阴影
+    void ChangeCurSor(const QPoint &p); //更改鼠标样式
     void paintEvent(QPaintEvent *event) override;
     void mousePressEvent(QMouseEvent *e) override;
     void mouseMoveEvent(QMouseEvent *e) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
-    QTreeWidgetItem *CreateTreeWidgetItem(QString fenzuming, int acc = -1); //返回节点指针
-    QPixmap CreatePixmap(QString picPath); //返回圆形头像
-    void ChangeCurSor(const QPoint &p); //更改鼠标样式
+
+    /* 好友列表 */
+    void GetFriendsData(); //从本地数据文件中获取好友列表信息
+    void InitTreeWidget(); //初始化好友列表TreeWidget
+    void InitFriRitBtnMenu(); //初始化好友列表右键菜单
+    void UpdateTreeWidget(); //更新好友列表TreeWidget
+    QTreeWidgetItem *CreateTreeWidgetItem(QString fenzuming, int acc = -1); //创建好友列表节点指针
+    void DelFri(); //删除好友
 signals:
     void StartConnecting(); //连接服务器
     void MainInterfaceClose(); //主窗口退出
     void SendReplyToFindFri(bool type); //将回应发送回查找好友界面
-    void sendSearchFriMsgToSer(int acc); //向服务器发送查找好友信息
-    void sendFriAddMsgToSer(int myacc, int targetacc,QString type,QString yanzheng = ""); //发送好友申请信息给服务器
-    void ChangeOnlineSta(int acc, QString onl); //改变在线状态
-    void sendSmsToFri(int acc,int targetAcc,QString MsgType,QString Msg); //向好友发送信息
-    void AskForUserData(QString isMe, int acc); //请求用户个人资料
-    void ChangingUserDatas(int,QString); //更改用户资料
-    void ChangingHS(int acc,QString fileP); //修改头像
+
+    //发送信息给服务器
+    void SendMsgToServer(int type,int acc = -1,int targetacc = -1,QString Msg = "",QString MsgType = "");
 private slots:
     void on_CloseBtn_clicked();
 
@@ -96,7 +104,9 @@ private slots:
 
     void ItemNameChanged(QTreeWidgetItem * item); //分组名改变
 
-    void on_HeadShotBtn_clicked();
+    void on_HeadShotBtn_clicked(); //点击自己的头像
+
+    void MoveFriend(); //移动好友
 
 private:
     Ui::MainInterface *ui;
@@ -120,12 +130,6 @@ private:
     QHash<int,PersonalData*> m_PersonData; //个人资料界面
     ChangeData * m_editData = nullptr; //修改个人资料界面
 
-    /* 登录用户信息 */
-    int m_account; //账户
-    QString m_headshot; //头像地址
-    QString m_nickname; //昵称
-    QString m_signature; //个性签名
-
     /* 托盘 */
     QSystemTrayIcon * m_sysIcon; //托盘功能
     QAction* m_quit; //退出
@@ -147,6 +151,8 @@ private:
     QMenu * m_frimenu; //好友右键菜单
     QAction * m_Chat; //与好友聊天
     QAction * m_FriData; //查看好友资料
+    QMenu * m_moveFri; //移动联系人
+    QMap<QString,QAction*> m_movegroups; //可移动的分组
     QAction * m_delete; //删除好友
 
     /* 好友分组右键菜单 */
@@ -163,10 +169,6 @@ private:
 
     /* 保存选择的好友item */
     QTreeWidgetItem * m_friItem = nullptr; //选择的好友item
-
-    const QString m_path = QCoreApplication::applicationDirPath() + "/userdata";
-    const QString m_alluserspath = QCoreApplication::applicationDirPath() + "/userdata/allusers";
-    QString m_userpath = QCoreApplication::applicationDirPath() + "/userdata";
 };
 
 #endif // MAININTERFACE_H

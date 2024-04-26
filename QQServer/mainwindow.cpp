@@ -10,16 +10,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    QDir dir;
-    if(!dir.exists(m_path))
-    {
-        qDebug() << "未创建用户数据文件夹";
-        if(!dir.mkdir(m_path))
-        {
-            qDebug() << "创建用户数据文件夹失败";
-            return;
-        }
-    }
+    Global::CreateWorkPath();
 
     if(!m_sqldata.connectToSql())
     {
@@ -78,6 +69,8 @@ MainWindow::~MainWindow()
     m_SendTd->deleteLater();
     m_SendTask->deleteLater();
 
+    m_serv->deleteLater();
+
     delete ui;
 }
 
@@ -96,9 +89,7 @@ void MainWindow::ReadMsgFromClt()
 {
     //sender返回指向发送信号的对象的指针
     QTcpSocket * sock = (QTcpSocket*)sender();
-    //获取接收数据的套接字后开始读取
-    m_ReadTask->GetTcpSocket(sock);
-    emit StartRead();
+    emit StartRead(sock);
 }
 
 void MainWindow::CltDisconnected()

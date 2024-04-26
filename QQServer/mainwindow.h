@@ -2,10 +2,9 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QThread>
 #include <QTcpServer>
 #include <QTcpSocket>
-#include <QCoreApplication>
+#include <QThread>
 #include "qqsqldata.h"
 #include "workthread.h"
 #include "sendthread.h"
@@ -31,14 +30,14 @@ public slots:
     void UserOnLine(int acc,quint16 sockport); //用户上线则加入在线哈希表中
     void SendMsgToClt(quint16 port,int type,int acc,int targetacc,QByteArray jsondata,QString msgtype,QString fileName); //发送信息给客户端
 signals:
-    void StartRead(); //开始读取客户端信息
+    void StartRead(QTcpSocket*); //开始读取客户端信息
     void StartWrite(QTcpSocket*,QByteArray,int); //开始发送信息给客户端
 private:
     Ui::MainWindow *ui;
 
     Qqsqldata m_sqldata; //数据库
 
-    unsigned short m_port = 9000; //服务器监听端口号
+    quint16 m_port = 9000; //服务器监听端口号
     QTcpServer * m_serv; //Tcp服务器
 
     QThread * m_ReadTd; //读线程
@@ -52,7 +51,5 @@ private:
 
     QHash<quint16,QTcpSocket*> m_sockets; //tcp通信套接字
     QHash<int,QTcpSocket*> m_onlines; //在线用户哈希表
-
-    const QString m_path = QCoreApplication::applicationDirPath() + "/usersdata"; //用户数据文件夹
 };
 #endif // MAINWINDOW_H

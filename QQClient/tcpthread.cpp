@@ -22,7 +22,7 @@ void TcpThread::StartConnect()
     //等待套接字连接服务器
     m_tcp->waitForConnected(100);
     //如果未连接成功则启用自动重连
-    if(isConnecting == false)
+    if(Global::isConnecting == false)
     {
         qDebug() << "正在尝试自动重连";
         if(m_timer == nullptr)
@@ -50,99 +50,9 @@ void TcpThread::GetClose()
     qDebug() << "线程已退出";
 }
 
-void TcpThread::LoginToServer(bool isfirst, int acc, QString pwd,bool isChecked)
+void TcpThread::LoginToServer()
 {
-    isFirstLogin = isfirst;
-    m_account = acc;
-    m_pwd = pwd;
-    isRemember = isChecked;
     MsgToJson(LoginAcc);
-}
-
-void TcpThread::sendSearchFriMsgToSer(int acc)
-{
-    //设置目标账号
-    MsgToJson(SearchFri,0,acc);
-}
-
-void TcpThread::sendFriAddMsgToSer(int myacc, int targetacc, QString type,QString yanzheng)
-{
-    qDebug() << "正在发送好友申请信息";
-    MsgToJson(AddFri,myacc,targetacc,yanzheng,type);
-}
-
-void TcpThread::ChangeOnlineSta(int acc, QString onl)
-{
-    MsgToJson(ChangeOnlSta,acc,-1,onl);
-}
-
-void TcpThread::sendSmsToFri(int acc, int targetAcc, QString MsgType, QString Msg)
-{
-    MsgToJson(SendMsg,acc,targetAcc,Msg,MsgType);
-}
-
-void TcpThread::AskForUserData(QString isMe, int acc)
-{
-    MsgToJson(AskForData,acc,-1,"",isMe);
-}
-
-void TcpThread::ChangingUserDatas(int acc, QString datas)
-{
-    MsgToJson(UserChangeData,acc,-1,datas,"");
-}
-
-void TcpThread::ChangingHS(int acc, QString fileN)
-{
-    CutPhoto(acc,fileN);
-    MsgToJson(UpdateHeadShot,acc);
-}
-
-void TcpThread::CutPhoto(int acc,QString path)
-{
-    QImage img;
-    if(!img.load(path))
-    {
-        qDebug() << "图片加载失败: " << path;
-        return;
-    }
-
-    int pwidth = img.width();
-    int phigh = img.height();
-    qDebug() << "图片高为:" << pwidth << "宽" << phigh;
-    QImage cimg;
-    if(pwidth == phigh)
-    {
-        cimg = img.copy();
-        qDebug() << "图片宽高:" << cimg.width() << "," << cimg.height();
-    }
-    else if(pwidth > phigh)
-    {
-        qDebug() << "截取横屏图片";
-        cimg = img.copy(QRect((pwidth - phigh)/2,0,phigh,phigh));
-        qDebug() << "图片宽高:" << cimg.width() << "," << cimg.height();
-    }
-    else
-    {
-        qDebug() << "截取竖屏图片";
-        cimg = img.copy(QRect(0,(phigh - pwidth)/2,pwidth,pwidth));
-        qDebug() << "图片宽高:" << cimg.width() << "," << cimg.height();
-    }
-
-    //头像统一设置为350*350
-    cimg = cimg.scaled(350,350,Qt::IgnoreAspectRatio,Qt::SmoothTransformation);
-    qDebug() << "图片宽高:" << cimg.width() << "," << cimg.height();
-
-    //更新图片
-    QString fileName = m_path + "/" + QString::number(acc) + "/" + QString::number(acc) + ".jpg";
-
-    //删除原来的头像
-    bool ok = QFile::remove(fileName);
-    if(!ok)
-    {
-        qDebug() << "删除头像失败";
-    }
-
-    cimg.save(fileName);
 }
 
 void TcpThread::SendFile(QString fileName,quint32 type)
@@ -286,23 +196,15 @@ void TcpThread::connectToServer()
     m_tcp->connectToHost(QHostAddress(address),port);
 }
 
-void TcpThread::recvAccMsg(QString type,int acc, QString pwd)
+void TcpThread::recvAccMsg(int type,int acc, QString pwd)
 {
-    if(type == "注册")
-    {
-        MsgToJson(Registration,acc,0,pwd);
-    }
-    else
-    {
-        qDebug() << "找回密码中...";
-        MsgToJson(FindPwd,acc,0,pwd);
-    }
+    MsgToJson((InforType)type,acc,0,pwd);
 }
 
 void TcpThread::ConnectSuccess()
 {
     qDebug() << "连接服务器成功!连接服务器的线程ID为:" << QThread::currentThreadId();
-    isConnecting = true;
+    Global::isConnecting = true;
     emit isConnectingWithServer(true);
     //第一次就连接成功则直接返回
     if(m_timer == nullptr)
@@ -357,9 +259,9 @@ void TcpThread::ReadMsgFromServer()
                 QDataStream in(&m_byteArray,QIODevice::ReadOnly);
                 in >> m_infotype >> m_TargetAcc >> m_fileSize >> m_fileName;
                 m_recvFileSize = 0;
-                qDebug() << "文件包头信息:" << "infotype: " <<m_infotype << "acc: " << m_TargetAcc
+                qDebug() << "文件包头信息:" << "infotype: " << m_infotype << "acc: " << m_TargetAcc
                          << "fileSize: " << m_fileSize << "fileName:" << m_fileName;
-                m_buffer.open(QIODevice::ReadWrite);
+                m_buffer.open(QIODevice::ReadWrite | QIODevice::Truncate);
             }
             break;
         case FileDataHead:
@@ -380,16 +282,16 @@ void TcpThread::ReadMsgFromServer()
 
                         QDir dir;
                         //若无该账号本地文件夹则创建
-                        if(!dir.exists(m_path + "/" + accountS))
+                        if(!dir.exists(Global::AppWorkPath() + "/" + accountS))
                         {
                             //创建用户数据文件夹
-                            if(!dir.mkdir(m_path + "/" + accountS))
+                            if(!dir.mkdir(Global::AppWorkPath() + "/" + accountS))
                             {
                                 qDebug() << "文件夹创建失败";
                                 return;
                             }
 
-                            if(!dir.mkdir(m_path + "/" + accountS + "/FileRecv"))
+                            if(!dir.mkdir(Global::AppWorkPath() + "/" + accountS + "/FileRecv"))
                             {
                                 qDebug() << "文件接收文件夹创建失败";
                                 return;
@@ -397,32 +299,32 @@ void TcpThread::ReadMsgFromServer()
                             qDebug() << "文件夹创建成功，正在写入初始文件: " << accountS;
                         }
 
-                        QString fileN = m_path + "/" + accountS + "/" + m_fileName;
+                        QString fileN = Global::AppWorkPath() + "/" + accountS + "/" + m_fileName;
                         qDebug() << "接收文件地址: " << fileN;
                         WriteToFile(fileN);
                     }
                     break;
                 case SearchFri:
                     {
-                        QString filePath = m_alluserspath + "/" + m_fileName;
+                        QString filePath = Global::AppAllUserPath() + "/" + m_fileName;
                         WriteToFile(filePath);
                     }
                     break;
                 case AddFri:
                     {
-                        QString filePath = m_alluserspath + "/" + m_fileName;
+                        QString filePath = Global::AppAllUserPath() + "/" + m_fileName;
                         WriteToFile(filePath);
                     }
                     break;
                 case SendMsg:
                     {
-                        QString filePath = m_path + "/" + QString::number(m_account) + "/FileRecv/" + m_fileName;
+                        QString filePath = Global::UserFileRecvPath() + m_fileName;
                         WriteToFile(filePath);
                     }
                     break;
                 case AskForData:
                     {
-                        QString filePath = m_alluserspath + "/" + m_fileName;
+                        QString filePath = Global::AppAllUserPath() + "/" + m_fileName;
                         WriteToFile(filePath);
                     }
                     break;
@@ -458,14 +360,14 @@ void TcpThread::ParseMsg(QByteArray data)
     {
         qDebug() << "返回找回密码结果";
         QString pwd = obj.value("pwd").toString();
-        emit sendResultToAccMsg("找回密码",pwd,"");
+        emit sendResultToAccMsg(FindPwd,pwd,"");
         break;
     }
     case Registration:
     {
         qDebug() << "返回注册结果";
         QString result = obj.value("result").toString();
-        emit sendResultToAccMsg("注册","",result);
+        emit sendResultToAccMsg(Registration,"",result);
         break;
     }
     case LoginAcc:
@@ -482,7 +384,7 @@ void TcpThread::ParseMsg(QByteArray data)
             qDebug() << "登录成功";
             QString signature = obj.value("signature").toString(); //获取用户个性签名
             QString nickname;
-            QFile file(m_path + "/" + QString::number(m_account) + "/login.txt");
+            QFile file(Global::UserLoginFile());
             if(isfirst == "第一次登录") //若为第一次登录
             {
                 qDebug() << "为第一次登录";
@@ -491,16 +393,16 @@ void TcpThread::ParseMsg(QByteArray data)
                 QString mynickname = obj.value("nickname").toString();
                 nickname = mynickname;
 
-                QString accountS = QString::number(m_account);
+                QString accountS = QString::number(Global::UserAccount());
 
                 //创建登录界面初始化文件
                 file.open(QFile::WriteOnly);
                 QString msg = mynickname + "@@" + accountS + ".jpg@@";
                 //若isRemember为真则是记住密码
-                if(isRemember)
+                if(Global::isRemember)
                 {
                     msg += "记住@@";
-                    msg += m_pwd;
+                    msg += Global::UserPwd();
                 }
                 else
                 {
@@ -524,16 +426,15 @@ void TcpThread::ParseMsg(QByteArray data)
                 //若文件中记录为记住则为真，否则为假
                 bool fileRem = loginDs.at(2) == "记住" ? true : false;
                 //若文件中记录与当前选择不相同才更改文件
-                if(fileRem != isRemember)
+                if(fileRem != Global::isRemember)
                 {
-                    qDebug() << "正在更改配置文件" << "记住按钮选中状态" << isRemember;
+                    qDebug() << "正在更改配置文件" << "记住按钮选中状态" << Global::isRemember;
                     QByteArray writeDatas;
                     QString loginData;
                     //昵称和头像名称不改变，只改变后两位是否记住和密码
-                    if(isRemember)
+                    if(Global::isRemember)
                     {
-                        loginData = loginDs.at(0) + "@@" + loginDs.at(1) + "@@" + "记住@@" + m_pwd;
-                        qDebug() << m_pwd;
+                        loginData = loginDs.at(0) + "@@" + loginDs.at(1) + "@@" + "记住@@" + Global::UserPwd();
                     }
                     else
                     {
@@ -545,7 +446,8 @@ void TcpThread::ParseMsg(QByteArray data)
                     file.close();
                 }
             }
-            emit sendResultToMainInterFace(type,m_account,nickname,signature,"","");
+            Global::InitUserNameAndSig(nickname,signature);
+            emit sendResultToMainInterFace(type,-1);
         }
         break;
     }
@@ -555,7 +457,7 @@ void TcpThread::ParseMsg(QByteArray data)
         if(res == "查找失败")
         {
             qDebug() << "好友查找失败";
-            emit sendResultToMainInterFace(type,-1,"","","查找失败","");
+            emit sendResultToMainInterFace(type,-1,"","","查找失败");
         }
         else
         {
@@ -564,7 +466,7 @@ void TcpThread::ParseMsg(QByteArray data)
             //获取用户信息
             QString uD = obj.value("userData").toString();
 
-            emit sendResultToMainInterFace(type,-1,"","","查找成功",uD);
+            emit sendResultToMainInterFace(type,-1,uD,"","查找成功");
         }
         break;
     }
@@ -575,7 +477,7 @@ void TcpThread::ParseMsg(QByteArray data)
         if(result == "该好友已下线")
         {
             int targetAcc = obj.value("targetaccount").toInt();
-            emit sendResultToMainInterFace(AddFri,targetAcc,"","",result,"");
+            emit sendResultToMainInterFace(AddFri,targetAcc,"","",result);
         }
         else
         {
@@ -588,13 +490,13 @@ void TcpThread::ParseMsg(QByteArray data)
                 QString friAcc = uD.split("@@").at(0);
 
                 QString yanzheng = obj.value("yanzheng").toString();
-                emit sendResultToMainInterFace(type,-1,"","","",uD,yanzheng,msgType);
+                emit sendResultToMainInterFace(type,-1,uD,yanzheng,msgType);
             }
             else if(msgType == "成功删除好友")
             {
                 int friacc = obj.value("friacc").toInt();
                 qDebug() << "删除好友" << friacc;
-                emit sendResultToMainInterFace(type,friacc,"","","","","",msgType);
+                emit sendResultToMainInterFace(type,friacc,"","",msgType);
             }
         }
         break;
@@ -611,23 +513,19 @@ void TcpThread::ParseMsg(QByteArray data)
         if(msgType == "添加好友成功")
         {
             QString uD = obj.value("userData").toString();
-            QStringList uDatas = uD.split("@@");
-            //第一个信息为昵称，第二个为个性签名
-            QString nickname = uDatas.at(0);
-            QString signature = uDatas.at(1);
 
-            sendResultToMainInterFace(type,acc,nickname,signature,"","",msg,msgType);
+            sendResultToMainInterFace(type,acc,uD,msg,msgType);
         }
         else if(msgType == "发送图片")
         {
-            QString filePath = m_path + "/" + QString::number(m_account) + "/FileRecv/" + msg;
+            QString filePath = Global::UserFileRecvPath() + msg;
             qDebug() << "收到图片: " << filePath;
-            sendResultToMainInterFace(type,acc,"","","","",filePath,msgType);
+            sendResultToMainInterFace(type,acc,"",filePath,msgType);
         }
         else
         {
             qDebug() << acc;
-            sendResultToMainInterFace(type,acc,"","","","",msg,msgType);
+            sendResultToMainInterFace(type,acc,"",msg,msgType);
         }
         break;
     }
@@ -638,13 +536,13 @@ void TcpThread::ParseMsg(QByteArray data)
         QString Datas = obj.value("userdatas").toString();
         if(msgType == "请求自己的")
         {
-            emit sendResultToMainInterFace(AskForData,-1,"","","",Datas,"",msgType);
+            emit sendResultToMainInterFace(AskForData,-1,Datas,"",msgType);
         }
         //否则为请求好友的
         else
         {
             QString result = obj.value("result").toString();
-            emit sendResultToMainInterFace(AskForData,acc,"","",result,Datas,"",msgType);
+            emit sendResultToMainInterFace(AskForData,acc,Datas,result,msgType);
         }
 
         break;
@@ -655,7 +553,7 @@ void TcpThread::ParseMsg(QByteArray data)
 void TcpThread::DisconnectFromServer()
 {
     qDebug() << "服务器断开连接";
-    isConnecting = false;
+    Global::isConnecting = false;
     m_tcp->close();
     emit isConnectingWithServer(false);
     //掉线自动重连
@@ -667,7 +565,7 @@ void TcpThread::DisconnectFromServer()
     m_timer->start(3000);
 }
 
-void TcpThread::MsgToJson(InforType type,int acc,int targetacc,QString Msg,QString MsgType)
+void TcpThread::MsgToJson(int type,int acc,int targetacc,QString Msg,QString MsgType)
 {
     QString fileName = "";
     int fileNums = -1;
@@ -691,9 +589,9 @@ void TcpThread::MsgToJson(InforType type,int acc,int targetacc,QString Msg,QStri
     case LoginAcc:
     {
         qDebug() << "登录中...";
-        obj.insert("isfirstlogin",isFirstLogin);
-        obj.insert("account",m_account);
-        obj.insert("pwd",m_pwd);
+        obj.insert("isfirstlogin",Global::isFirstLogin);
+        obj.insert("account",Global::UserAccount());
+        obj.insert("pwd",Global::UserPwd());
         break;
     }
     case SearchFri:
@@ -746,7 +644,7 @@ void TcpThread::MsgToJson(InforType type,int acc,int targetacc,QString Msg,QStri
         obj.insert("msgtype",MsgType);
         if(MsgType == "请求好友的")
         {
-            QFileInfo info(m_alluserspath + "/" + QString::number(acc) + ".jpg");
+            QFileInfo info(Global::AppAllUserPath() + "/" + QString::number(acc) + ".jpg");
             qDebug() << "好友的头像大小为: " << info.size();
             obj.insert("headSize",info.size());
         }
@@ -760,17 +658,17 @@ void TcpThread::MsgToJson(InforType type,int acc,int targetacc,QString Msg,QStri
     }
     case UpdateHeadShot:
     {
-        fileName = m_path + "/" + QString::number(acc) + "/" + QString::number(acc) + ".jpg";
+        fileName = Global::UserHeadShot();
         QByteArray empty;
         m_Recvaccount = acc;
-        SendToServer(empty,fileName,type,1);
+        SendToServer(empty,fileName,(InforType)type,1);
         return;
     }
     }
     QJsonDocument doc(obj);
     QByteArray data = doc.toJson();
 
-    SendToServer(data,fileName,type,fileNums);
+    SendToServer(data,fileName,(InforType)type,fileNums);
 }
 
 void TcpThread::SendToServer(QByteArray jsondata, QString fileName,InforType type,int fileNums)
@@ -806,7 +704,7 @@ void TcpThread::AutoConnect()
 {
     connectToServer();
     m_tcp->waitForConnected(100);
-    if(isConnecting == true)
+    if(Global::isConnecting == true)
     {
         m_timer->stop();
     }

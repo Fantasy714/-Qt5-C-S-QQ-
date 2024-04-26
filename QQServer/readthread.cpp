@@ -10,22 +10,17 @@ ReadThread::ReadThread(QObject *parent) : QObject(parent)
     m_account = -1;
 }
 
-void ReadThread::GetTcpSocket(QTcpSocket *sock)
+void ReadThread::ReadDataFromClt(QTcpSocket * sock)
 {
-    m_tcp = sock;
-}
-
-void ReadThread::ReadDataFromClt()
-{
-    if(m_tcp->bytesAvailable() == 0) //判断有没有数据;
+    if(sock->bytesAvailable() == 0) //判断有没有数据;
     {
         qDebug() << "无数据或数据已读完";
         return;
     }
     //读取包头或若仍有未读取完毕的数据则跳过直接读取数据
-    if(m_tcp->bytesAvailable() >= 10 && m_type == 0)
+    if(sock->bytesAvailable() >= 10 && m_type == 0)
     {
-        QByteArray bytearray = m_tcp->read(10);
+        QByteArray bytearray = sock->read(10);
         QDataStream in(&bytearray,QIODevice::ReadOnly);
 
         quint32 Empty;
@@ -37,9 +32,9 @@ void ReadThread::ReadDataFromClt()
         return;
     }
     //有数据且本次数据未读完
-    while(m_tcp->bytesAvailable() && m_recvBytes < m_totalBytes)
+    while(sock->bytesAvailable() && m_recvBytes < m_totalBytes)
     {
-        m_byteArray.append(m_tcp->read(m_totalBytes - m_recvBytes));
+        m_byteArray.append(sock->read(m_totalBytes - m_recvBytes));
         m_recvBytes = m_byteArray.size();
     }
     //数据包读取完毕
@@ -49,7 +44,7 @@ void ReadThread::ReadDataFromClt()
         switch(m_type)
         {
         case JsonDataHead:
-            emit RecvFinished(m_tcp->peerPort(),m_byteArray);
+            emit RecvFinished(sock->peerPort(),m_byteArray);
             break;
         case FileInfoHead:
             {
@@ -74,14 +69,14 @@ void ReadThread::ReadDataFromClt()
                 {
                 case SendMsg:
                     {
-                        QString filePath = m_path + "/" + QString::number(m_account) + "/FileRecv/" + m_fileName;
+                        QString filePath = Global::UserFilePath(m_account) + m_fileName;
                         WriteToFile(filePath);
                         m_buffer.close();
                     }
                     break;
                 case UpdateHeadShot:
                     {
-                        QString filePath = m_path + "/" + QString::number(m_account) + "/" + m_fileName;
+                        QString filePath = Global::UserHeadShot(m_account);
                         WriteToFile(filePath);
                         m_buffer.close();
                     }
@@ -101,9 +96,9 @@ void ReadThread::ReadDataFromClt()
         m_recvBytes = 0;
     }
      //若数据未读取完则继续读取
-    if(m_tcp->bytesAvailable())
+    if(sock->bytesAvailable())
     {
-        ReadDataFromClt();
+        ReadDataFromClt(sock);
     }
 }
 

@@ -7,7 +7,7 @@
 
 #define Margin 10
 
-ChatWindow::ChatWindow(int acc,int targetAcc,QString nickN,QWidget *parent) :
+ChatWindow::ChatWindow(int targetAcc,QString nickN,QWidget *parent) :
     QWidget(parent),
     ui(new Ui::ChatWindow)
 {
@@ -16,13 +16,10 @@ ChatWindow::ChatWindow(int acc,int targetAcc,QString nickN,QWidget *parent) :
     this->setAttribute(Qt::WA_TransparentForMouseEvents,false);
 
     //初始化好友信息
-    m_account = acc;
     m_targetAcc = targetAcc;
     m_nickname = nickN;
 
     //初始化好友头像位置及自己的头像及用户文件夹位置
-    m_Mypath = QCoreApplication::applicationDirPath() + "/userdata/" + QString::number(acc);
-    m_MyHeadShot = QCoreApplication::applicationDirPath() + "/userdata/" + QString::number(acc) + "/" + QString::number(acc) + ".jpg";
     m_FriHeadShot = QCoreApplication::applicationDirPath() + "/userdata/allusers/" + QString::number(targetAcc) + ".jpg";
 
     //设置无边框窗口
@@ -36,7 +33,7 @@ ChatWindow::ChatWindow(int acc,int targetAcc,QString nickN,QWidget *parent) :
 
     //用好友的头像和昵称作窗口的图标和名称
     QPixmap pix;
-    pix = CreatePixmap(m_FriHeadShot);
+    pix = Global::CreateHeadShot(m_FriHeadShot);
     //设置窗口图标
     setWindowIcon(QIcon(pix));
     setWindowTitle(m_nickname);
@@ -176,31 +173,6 @@ void ChatWindow::paintEvent(QPaintEvent *event)
 {
     QPainter painter(this);
     painter.fillRect(this->rect().adjusted(15,15,-15,-15),QColor(220,220,220));
-}
-
-QPixmap ChatWindow::CreatePixmap(QString picPath)
-{
-    QPixmap src(picPath);
-    QPixmap pix(src.width(),src.height());
-
-    //设置图片透明
-    pix.fill(Qt::transparent);
-
-    QPainter painter(&pix);
-    //设置图片边缘抗锯齿，指示引擎应使用平滑像素图变换算法绘制图片
-    painter.setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
-
-    QPainterPath path;
-    //设置圆形半径，取图片较小边长作为裁切半径
-    int radius = src.width() > src.height() ? src.height()/2 : src.width()/2;
-    //绘制裁切区域的大小
-    path.addEllipse(src.rect().center(),radius,radius);
-    //设置裁切区域
-    painter.setClipPath(path);
-    //把源图片的内容绘制到创建的pixmap上，非裁切区域内容不显示
-    painter.drawPixmap(pix.rect(),src);
-
-    return pix;
 }
 
 int ChatWindow::returnItemHeight(MsgType MsgType,int wLgh)
@@ -356,11 +328,11 @@ QWidget *ChatWindow::CreateWidget(bool isMe, MsgType MsgType, QString Msg)
         //判断是自己的头像还是对方的
         if(isMe)
         {
-            pix = CreatePixmap(m_MyHeadShot).scaled(40,40);
+            pix = Global::CreateHeadShot(Global::UserHeadShot()).scaled(40,40);
         }
         else
         {
-            pix = CreatePixmap(m_FriHeadShot).scaled(40,40);
+            pix = Global::CreateHeadShot(m_FriHeadShot).scaled(40,40);
         }
         HeadS->setPixmap(pix);
         HeadS->setFixedSize(42,42);
@@ -404,11 +376,11 @@ QWidget *ChatWindow::CreateWidget(bool isMe, MsgType MsgType, QString Msg)
         //判断是自己的头像还是对方的
         if(isMe)
         {
-            pix = CreatePixmap(m_MyHeadShot).scaled(40,40);
+            pix = Global::CreateHeadShot(Global::UserHeadShot()).scaled(40,40);
         }
         else
         {
-            pix = CreatePixmap(m_FriHeadShot).scaled(40,40);
+            pix = Global::CreateHeadShot(m_FriHeadShot).scaled(40,40);
         }
         HeadS->setPixmap(pix);
         HeadS->setFixedSize(42,42);
@@ -524,6 +496,10 @@ void ChatWindow::on_BigBtn_clicked()
 void ChatWindow::on_PicBtn_clicked()
 {
     QString SendFileName = QFileDialog::getOpenFileName(this,"发送图片","","Picture Files(*.jpg;*.png)");
+    if(SendFileName == "")
+    {
+        return;
+    }
     qDebug() << "发送图片: " << SendFileName;
     //更新自己的聊天框同时发送文件
     FriendSendMsg(true,itsPicture,SendFileName);

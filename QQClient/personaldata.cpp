@@ -39,11 +39,11 @@ PersonalData::PersonalData(bool isMe,int acc,QStringList UserData,QWidget *paren
     QPixmap pix;
     if(isMe)
     {
-        pix = CreatePixmap(m_path + "/" + QString::number(acc) + "/" + QString::number(acc) + ".jpg");
+        pix = Global::CreateHeadShot(Global::UserHeadShot());
     }
     else
     {
-        pix = CreatePixmap(m_alluserspath + "/" + QString::number(acc) + ".jpg");
+        pix = Global::CreateHeadShot(Global::AppAllUserPath() + "/" + QString::number(acc) + ".jpg");
     }
     ui->HeadShotBtn->setIcon(QIcon(pix));
     ui->HeadShotBtn->setIconSize(QSize(65,65));
@@ -93,31 +93,6 @@ void PersonalData::mouseReleaseEvent(QMouseEvent *event)
     isPressed = false;
 }
 
-QPixmap PersonalData::CreatePixmap(QString picPath)
-{
-    QPixmap src(picPath);
-    QPixmap pix(src.width(),src.height());
-
-    //设置图片透明
-    pix.fill(Qt::transparent);
-
-    QPainter painter(&pix);
-    //设置图片边缘抗锯齿，指示引擎应使用平滑像素图变换算法绘制图片
-    painter.setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
-
-    QPainterPath path;
-    //设置圆形半径，取图片较小边长作为裁切半径
-    int radius = src.width() > src.height() ? src.height()/2 : src.width()/2;
-    //绘制裁切区域的大小
-    path.addEllipse(src.rect().center(),radius,radius);
-    //设置裁切区域
-    painter.setClipPath(path);
-    //把源图片的内容绘制到创建的pixmap上，非裁切区域内容不显示
-    painter.drawPixmap(pix.rect(),src);
-
-    return pix;
-}
-
 void PersonalData::initShadow()
 {
     //设置背景透明
@@ -137,6 +112,53 @@ void PersonalData::paintEvent(QPaintEvent *event)
     painter.fillRect(this->rect().adjusted(10,10,-10,-10),QColor(220,220,220));
 }
 
+void PersonalData::CutPhoto(QString path)
+{
+    QImage img;
+    if(!img.load(path))
+    {
+        qDebug() << "图片加载失败: " << path;
+        return;
+    }
+
+    int pwidth = img.width();
+    int phigh = img.height();
+    qDebug() << "图片高为:" << pwidth << "宽" << phigh;
+    QImage cimg;
+    if(pwidth == phigh)
+    {
+        cimg = img.copy();
+        qDebug() << "图片宽高:" << cimg.width() << "," << cimg.height();
+    }
+    else if(pwidth > phigh)
+    {
+        qDebug() << "截取横屏图片";
+        cimg = img.copy(QRect((pwidth - phigh)/2,0,phigh,phigh));
+        qDebug() << "图片宽高:" << cimg.width() << "," << cimg.height();
+    }
+    else
+    {
+        qDebug() << "截取竖屏图片";
+        cimg = img.copy(QRect(0,(phigh - pwidth)/2,pwidth,pwidth));
+        qDebug() << "图片宽高:" << cimg.width() << "," << cimg.height();
+    }
+
+    //头像统一设置为350*350
+    cimg = cimg.scaled(350,350,Qt::IgnoreAspectRatio,Qt::SmoothTransformation);
+    qDebug() << "图片宽高:" << cimg.width() << "," << cimg.height();
+
+    //更新图片
+    QString fileName = Global::UserHeadShot();
+
+    //删除原来的头像
+    bool ok = QFile::remove(fileName);
+    if(!ok)
+    {
+        qDebug() << "删除头像失败";
+    }
+
+    cimg.save(fileName);
+}
 
 void PersonalData::on_CloseBtn_clicked()
 {
@@ -155,7 +177,8 @@ void PersonalData::on_HeadShotBtn_clicked()
     {
         QString hsFile = QFileDialog::getOpenFileName(this,"发送图片","","Picture Files(*.jpg;*.png)");
         qDebug() << "修改头像; " << hsFile;
-        emit ChangingHeadShot(hsFile);
+        CutPhoto(hsFile);
+        emit ChangingHeadShot();
         emit ClosePerData(m_acc);
     }
     else

@@ -2,10 +2,8 @@
 #define WORKTHREAD_H
 
 #include <QObject>
-#include <QReadWriteLock>
 #include <QTcpSocket>
 #include "qqsqldata.h"
-#include <QCoreApplication>
 #include "global.h"
 
 
@@ -40,10 +38,7 @@ signals:
     void SendMsgToClt(quint16 port,int type,int acc,int targetacc,QByteArray jsondata,QString msgtype,QString fileName); //发送信息给客户端
 private:
     Qqsqldata sql; //连接数据库
-    quint16 m_port; //tcp套接字端口号
-
-    const QString m_path = QCoreApplication::applicationDirPath() + "/usersdata"; //用户数据文件夹
-
+    quint16 m_port; //客户端套接字端口号
     QStringList m_userDatas; //保存用户资料
 };
 

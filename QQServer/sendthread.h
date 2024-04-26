@@ -4,7 +4,6 @@
 #include <QObject>
 #include <QTcpSocket>
 #include "global.h"
-#include <QCoreApplication>
 
 class SendThread : public QObject
 {
@@ -22,8 +21,6 @@ private:
     quint32 m_Infotype; //信息类型,发送文件时需发送该类型
     QString m_fileName; //需发送的文件名
     int m_account; //接收方账号
-
-    const QString m_path = QCoreApplication::applicationDirPath() + "/usersdata"; //用户文件夹
 };
 
 #endif // SENDTHREAD_H
