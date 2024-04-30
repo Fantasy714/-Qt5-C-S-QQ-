@@ -20,10 +20,10 @@ public:
     int LoginVerification(int acc, QString pwd); //登录
 
     /* 用户登录后操作 */
+    QVector<int> ReturnFris(int acc); //返回该用户的所有好友
     QStringList UserMessages(int acc); //返回用户资料
     bool ChangeUserMessages(int acc,QStringList uD); //更改用户资料
     bool AddFriend(int acc1,int acc2); //添加好友
-    QVector<int> ReturnFris(int acc); //返回该用户的所有好友
     bool DelFriend(int acc1,int acc2); //删除好友
 
     /* 其他 */
@@ -33,8 +33,8 @@ public:
 signals:
 
 private:
-    QSqlDatabase db;
-    QSqlQuery result;
+    QSqlDatabase db; //连接数据库
+    QSqlQuery result; //操作数据库
 };
 
 #endif // QQSQLDATA_H

@@ -3,8 +3,14 @@
 
 #include <QString>
 
-#define BufferSize 40960
+#define BufferSize 1024
+#define HeadSize 10
+#define NoHeadBufSize 1014
 
+/*
+文件取消传送可添加一个文件取消包头，收到后删除该端口号已接收的文件数据
+或者直接发送文件尾，判断如果接收文件大小不等于客户端发送来的文件总大小也可
+*/
 //包头类型
 enum RecvType {
     JsonDataHead = 50,
@@ -24,7 +30,8 @@ enum InforType {
     SendMsg,
     AskForData,
     UserChangeData,
-    UpdateHeadShot
+    UpdateHeadShot,
+    SendFileToFri
 };
 
 //保存用户资料编号

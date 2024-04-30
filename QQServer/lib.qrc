@@ -1,6 +1,5 @@
 <RCC>
     <qresource prefix="/">
-        <file>lib/pic.jpg</file>
         <file>lib/QQ.png</file>
         <file>lib/DefaultHead/touxiang1.jpg</file>
         <file>lib/DefaultHead/touxiang2.jpg</file>
@@ -9,5 +8,16 @@
         <file>lib/DefaultHead/touxiang5.jpg</file>
         <file>lib/DefaultHead/touxiang6.jpg</file>
         <file>lib/DefaultHead/touxiang7.jpg</file>
+        <file>lib/back.jpg</file>
+        <file>lib/DefaultHead/touxiang8.jpg</file>
+        <file>lib/DefaultHead/touxiang9.jpg</file>
+        <file>lib/DefaultHead/touxiang10.jpg</file>
+        <file>lib/DefaultHead/touxiang11.jpg</file>
+        <file>lib/DefaultHead/touxiang12.jpg</file>
+        <file>lib/DefaultHead/touxiang13.jpg</file>
+        <file>lib/DefaultHead/touxiang14.jpg</file>
+        <file>lib/DefaultHead/touxiang15.jpg</file>
+        <file>lib/DefaultHead/touxiang16.jpg</file>
+        <file>lib/DefaultHead/touxiang17.jpg</file>
     </qresource>
 </RCC>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 4.11.1, 2024-04-26T23:47:29. -->
+<!-- Written by QtCreator 4.11.1, 2024-04-30T23:47:43. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -287,6 +287,7 @@
     </valuelist>
     <value type="int" key="PE.EnvironmentAspect.Base">2</value>
     <valuelist type="QVariantList" key="PE.EnvironmentAspect.Changes"/>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">QQServer2</value>
     <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qt4ProjectManager.Qt4RunConfiguration:E:/code/MyQQ/QQServer/QQServer.pro</value>
     <value type="QString" key="ProjectExplorer.RunConfiguration.BuildKey">E:/code/MyQQ/QQServer/QQServer.pro</value>
     <value type="QString" key="RunConfiguration.Arguments"></value>

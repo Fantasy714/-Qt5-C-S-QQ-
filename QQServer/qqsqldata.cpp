@@ -34,7 +34,7 @@ QString Qqsqldata::Addaccount(int account, QString pwd)
         CreateFriends(account);
         //设置随机数种子
         qsrand(QTime(0,0,0).secsTo(QTime::currentTime()));
-        int photoId = rand() % 7 + 1; //随机分配一个默认头像编号
+        int photoId = rand() % 17 + 1; //随机分配一个默认头像编号
         QString headshot = ":/lib/DefaultHead/touxiang" + QString::number(photoId) + ".jpg";
         return headshot;
     }

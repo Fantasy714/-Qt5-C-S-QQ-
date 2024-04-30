@@ -20,16 +20,14 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     qqsqldata.cpp \
-    readthread.cpp \
-    sendthread.cpp \
+    tcpthread.cpp \
     workthread.cpp
 
 HEADERS += \
     global.h \
     mainwindow.h \
     qqsqldata.h \
-    readthread.h \
-    sendthread.h \
+    tcpthread.h \
     workthread.h
 
 FORMS += \

@@ -7,11 +7,121 @@
 #include <QFileInfo>
 #include <QDir>
 #include <QThread>
+#include <QDataStream>
+#include <QDebug>
 
 WorkThread::WorkThread(QObject *parent) : QObject(parent)
 {
 
 }
+
+WorkThread::~WorkThread()
+{
+    for(auto f : m_RecvFiles)
+    {
+        f->close();
+        f->remove();
+        f->deleteLater();
+    }
+}
+
+void WorkThread::SplitDataPackAge(QByteArray data,quint16 port)
+{
+    //取出包头并从数据包中删除包头
+    QByteArray head = data.left(10);
+    data.remove(0,10);
+    QDataStream headD(&head,QIODevice::ReadOnly);
+
+    //取出包头内容
+    quint16 headType;
+    quint32 Empty;
+    quint32 totalBytes;
+    headD >> headType  >> Empty >> totalBytes;
+    //qDebug() << "接收到数据的包头类型" << headType << "总字节数:" << totalBytes;
+
+    switch(headType)
+    {
+    case JsonDataHead:
+        emit ParseMsg(port,data.left(totalBytes));
+        break;
+    case FileInfoHead:
+        {
+            QByteArray filehead = data.left(totalBytes);
+            QDataStream fHead(&filehead,QIODevice::ReadOnly);
+            quint32 infotype;
+            int RecvAccount;
+            quint32 fSize;
+            QString fName;
+            fHead >> infotype >> RecvAccount >> fSize >> fName;
+            qDebug() << "接收类型: " << infotype << "接收方账号: " << RecvAccount
+                     << "接收文件大小: " << fSize << "接收文件名称: " << fName;
+            m_FileSizes.insert(port,fSize);
+            FilePackAgeCount.insert(port,0);
+
+            QString SaveFilePath;
+            switch(infotype)
+            {
+            case SendMsg:
+                {
+                    SaveFilePath = Global::UserFilePath(RecvAccount) + fName;
+                    QFile * file = new QFile(SaveFilePath);
+                    m_RecvFiles.insert(port,file); //加入文件操作哈希表
+                    file->open(QFile::WriteOnly | QFile::Truncate);
+                }
+                break;
+            case UpdateHeadShot:
+                {
+                    SaveFilePath = Global::UserHeadShot(RecvAccount);
+                    QFile * file = new QFile(SaveFilePath);
+                    m_RecvFiles.insert(port,file);
+                    file->open(QFile::Truncate | QFile::WriteOnly);
+                }
+                break;
+            case SendFileToFri:
+                {
+                    SaveFilePath = Global::UserFilePath(RecvAccount) + fName;
+                    QFile * file = new QFile(SaveFilePath);
+                    m_RecvFiles.insert(port,file); //加入文件操作哈希表
+                    file->open(QFile::WriteOnly | QFile::Truncate);
+                }
+                break;
+            default:
+                break;
+            }
+        }
+        break;
+    case FileDataHead:
+        {
+            FilePackAgeCount[port]++;
+            m_RecvFiles[port]->write(data);
+            /*
+            if(FilePackAgeCount % 1000 == 0)
+            {
+                qDebug() << "已接收的文件数据大小: " << m_RecvFiles[port]->size()
+                         << "文件总大小: " << m_fileSize << "已接收数据包个数: " << FilePackAgeCount;
+            }
+            */
+        }
+        break;
+    case FileEndDataHead:
+        {
+            QFile * file = m_RecvFiles[port];
+            file->write(data.left(totalBytes));
+            QString result = file->size() == m_FileSizes[port] ? "文件接收成功!" : "文件接收失败!";
+            qDebug() << "接收文件包尾数据: " << totalBytes << "接收文件总大小: " << file->size()
+                     << "已接收数据包个数: " << FilePackAgeCount[port] + 1 << ", " << result;
+            file->close();
+            m_RecvFiles.remove(port);
+            m_FileSizes.remove(port);
+            FilePackAgeCount.remove(port);
+            file->deleteLater();
+        }
+        break;
+    default:
+        break;
+    }
+}
+
 
 void WorkThread::ParseMsg(quint16 port,QByteArray data)
 {
@@ -82,11 +192,11 @@ void WorkThread::ParseMsg(quint16 port,QByteArray data)
             QString fileN = obj.value("msg").toString();
             QString filePath = Global::UserFilePath(targetAcc) + fileN;
             qDebug() << "转发图片中...文件路径: " << filePath << "文件名: " << fileN;
-            ForwardInformation(acc,targetAcc,msgType,fileN,filePath);
+            ReplyToJson(SendMsg,fileN,msgType,acc,targetAcc,filePath);
             break;
         }
         QString msg = obj.value("msg").toString();
-        ForwardInformation(acc,targetAcc,msgType,msg);
+        ReplyToJson(SendMsg,msg,msgType,acc,targetAcc);
         break;
     }
     case AskForData:
@@ -115,12 +225,30 @@ void WorkThread::ParseMsg(quint16 port,QByteArray data)
         ChangingUserDatas(acc,datas);
         break;
     }
+    case SendFileToFri:
+    {
+        qDebug() << "转发文件";
+        int acc = obj.value("account").toInt();
+        int targetAcc = obj.value("targetacc").toInt();
+        QString msgType = obj.value("msgtype").toString();
+        QString fName = obj.value("fileName").toString();
+        if(msgType == "发送文件")
+        {
+            ReplyToJson(SendFileToFri,fName,msgType,acc,targetAcc);
+        }
+        else
+        {
+            //获取该用户请求的文件路径,仅发送文件即可，不发送数据
+            QString filePath = Global::UserFilePath(acc) + fName;
+            ReplyToJson(SendFileToFri,"","接收文件",acc,targetAcc,filePath);
+        }
+        break;
+    }
     }
 }
 
 void WorkThread::ReplyToJson(InforType type,QString Msg,QString MsgType, int acc,int targetacc, QString fileName)
 {
-    //qDebug() << "开始回应客户端";
     QJsonObject obj;
     obj.insert("type",type);
     switch(type)
@@ -207,7 +335,6 @@ void WorkThread::ReplyToJson(InforType type,QString Msg,QString MsgType, int acc
     }
     case AskForData:
     {
-
         if(MsgType == "请求自己的")
         {
             obj.insert("account",acc);
@@ -233,13 +360,25 @@ void WorkThread::ReplyToJson(InforType type,QString Msg,QString MsgType, int acc
         }
         break;
     }
+    case SendFileToFri:
+    {
+        if(MsgType == "发送文件")
+        {
+            obj.insert("friacc",acc);
+            obj.insert("msgType",MsgType);
+
+            //获取文件大小添加在文件名后
+            QFileInfo info(Global::UserFilePath(targetacc) + Msg);
+            QString fileInfo = Msg + "?" + GetFileSize(info.size()); //此处用?隔开文件名和大小，方便接收端取出文件名
+            obj.insert("fileInfo",fileInfo);
+        }
+        break;
+    }
     }
     QJsonDocument doc(obj);
     QByteArray reply = doc.toJson();
 
-    int IntType = (int)type;
-    emit SendMsgToClt(m_port,IntType,acc,targetacc,reply,MsgType,fileName);
-    qDebug() << "发出发送回应信号";
+    emit SendMsgToClt(m_port,(int)type,acc,targetacc,reply,MsgType,fileName);
 }
 
 void WorkThread::recvRegistered(int acc, QString pwd)
@@ -248,15 +387,15 @@ void WorkThread::recvRegistered(int acc, QString pwd)
     //如果返回的头像名为空则为注册失败
     if(iconName == "")
     {
-        qDebug() << "账号重复,注册失败!";
+        //qDebug() << "账号重复,注册失败!";
         ReplyToJson(Registration,"注册失败");
-        ThreadbackMsg(Registration,acc,"注册失败");
+        emit ThreadbackMsg((int)Registration,acc,"注册失败");
     }
     else
     {
-        qDebug() << "注册成功!";
+        //qDebug() << "注册成功!";
         ReplyToJson(Registration,"注册成功");
-        ThreadbackMsg(Registration,acc,"注册成功");
+        emit ThreadbackMsg((int)Registration,acc,"注册成功");
         //如果注册成功则创建以该用户账号为名的文件夹与好友列表文件和头像
         QString path = Global::UserPath(acc);
         QDir dir;
@@ -313,7 +452,7 @@ void WorkThread::recvFind(int acc)
         qDebug() << "密码找回成功!";
         ReplyToJson(FindPwd,rtpwd);
     }
-    ThreadbackMsg(FindPwd,acc,rtpwd);
+    emit ThreadbackMsg((int)FindPwd,acc,rtpwd);
 }
 
 void WorkThread::CltLogin(int acc, QString pwd,bool isFirst)
@@ -323,20 +462,20 @@ void WorkThread::CltLogin(int acc, QString pwd,bool isFirst)
     {
         qDebug() << "账号密码错误";
         ReplyToJson(LoginAcc,"账号密码错误");
-        ThreadbackMsg(LoginAcc,acc,"账号或密码错误");
+        emit ThreadbackMsg((int)LoginAcc,acc,"账号或密码错误");
     }
     else if(result == 0) //重复登录
     {
         qDebug() << "重复登录";
         ReplyToJson(LoginAcc,"重复登录");
-        ThreadbackMsg(LoginAcc,acc,"重复登录");
+        emit ThreadbackMsg((int)LoginAcc,acc,"重复登录");
     }
     else //登录成功
     {
         qDebug() << "登录成功";
         m_userDatas = sql.UserMessages(acc); //获取用户昵称和个性签名
         emit UserOnLine(acc,m_port);
-        ThreadbackMsg(LoginAcc,acc,"登录成功");
+        emit ThreadbackMsg((int)LoginAcc,acc,"登录成功");
         if(isFirst)
         {
             //发送头像和好友信息
@@ -416,11 +555,6 @@ void WorkThread::CltChangeOnlSta(int acc, QString onlsta)
     sql.ChangeOnlineSta(acc,onlsta);
 }
 
-void WorkThread::ForwardInformation(int acc, int targetacc, QString msgType, QString msg,QString filePath)
-{
-    ReplyToJson(SendMsg,msg,msgType,acc,targetacc,filePath);
-}
-
 void WorkThread::AskForUserData(int acc, QString isSelf, int HeadShotSize)
 {
     m_userDatas = sql.UserMessages(acc);
@@ -461,4 +595,53 @@ void WorkThread::ChangingUserDatas(int acc, QString datas)
     {
         qDebug() << "用户资料更改失败!";
     }
+}
+
+QString WorkThread::GetFileSize(const int &size)
+{
+    int integer = 0; //整数
+    int decimal = 0; //小数
+    QString unit = "B";
+
+    qint64 RealSize = size; //换算后大小
+    qint64 dSize = size; //取小数位
+
+    integer = RealSize;
+
+    if(RealSize > 1024)
+    {
+        dSize = RealSize * 1000 / 1024;
+        integer = dSize / 1000; //整数位
+        decimal = dSize % 1000; //小数位
+        RealSize /= 1024;
+        unit = "KB";
+        if(RealSize > 1024)
+        {
+            dSize = RealSize * 1000 / 1024;
+            integer = dSize / 1000;
+            decimal = dSize % 1000;
+            RealSize /= 1024;
+            unit = "MB";
+            if(RealSize > 1024)
+            {
+                dSize = RealSize * 1000 / 1024;
+                integer = dSize / 1000;
+                decimal = dSize % 1000;
+                RealSize /= 1024;
+                unit = "GB";
+            }
+        }
+    }
+
+    QString dec = "";
+    decimal /= 10;
+    //保留两位小数
+    if(decimal < 10){
+        dec = "0" + QString::number(decimal);
+    }else{
+        dec = QString::number(decimal);
+    }
+
+    QString FileSize = "(" + QString::number(integer) + "." + dec + unit + ")";
+    return FileSize;
 }
