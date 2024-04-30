@@ -4,10 +4,9 @@
 #include <QObject>
 #include <QTcpSocket>
 #include <QTimer>
-#include <QDir>
 #include <QFile>
+#include <QTime>
 #include "global.h"
-#include <QBuffer>
 
 class TcpThread : public QObject
 {
@@ -15,12 +14,12 @@ class TcpThread : public QObject
 public:
     explicit TcpThread(QObject *parent = nullptr);
 
-    //传送接收信息
-    void SendToServer(QByteArray jsondata, QString fileName,InforType type,int fileNums); //发送数据给服务器
+    //发送接收信息
+    void SendToServer(QByteArray jsondata, QString fileName,InforType type,int fileNums,int RecvAccount); //发送数据给服务器
     void ReadMsgFromServer(); //接收服务器传来的数据
 
-    //解析和封装信息
-    void MsgToJson(int type,int acc = -1,int targetacc = -1,QString Msg = "",QString MsgType = ""); //将数据转化为Json数据
+    //解析和转换信息
+    void MsgToJson(int type,int acc = -1,int targetacc = -1,QString Msg = "",QString MsgType = ""); //将数据转换为Json数据
     void ParseMsg(QByteArray); //解析传回的数据
 public slots:
     //连接服务器端
@@ -29,7 +28,6 @@ public slots:
 
     //收到注册界面信息
     void recvAccMsg(int type,int acc,QString pwd); //获取注册界面返回的信息
-
     //收到登录信号
     void LoginToServer();
 signals:
@@ -40,6 +38,8 @@ signals:
     void isConnectingWithServer(bool onl);
     //发送结果回主界面
     void sendResultToMainInterFace(int type,int targetAcc,QString uData = "",QString Msg = "",QString MsgType = "");
+    //发送文件收发进度信息
+    void SendProgressInfo(int friAcc,QString fileName,int speed,int value,QTime RestTime,bool isMe);
 protected:
     //连接服务器及自动重连操作
     void connectToServer(); //连接服务器
@@ -48,9 +48,9 @@ protected:
     void AutoConnect(); //自动重连
 
     //网络传输相关
-    void SendFile(QString fileName,quint32 type); //发送文件
+    void SplitDataPackAge(QByteArray); //拆分数据包
+    void SendFile(QString fileName,quint32 type,int RecvAccount); //发送文件
     void SendJson(QByteArray jsonData); //发送Json数据
-    void WriteToFile(QString fileName); //写入文件
 private:
     QTcpSocket * m_tcp = nullptr; //tcp套接字
     quint32 port = 9000; //端口号
@@ -59,21 +59,21 @@ private:
     /* 自动重连 */
     QTimer * m_timer = nullptr; //定时器
 
-    /* 发送 */
-    int m_Recvaccount; //接收方账号
-
     /* 接收 */
-    QByteArray m_byteArray; //保存数据
-    quint16 m_type; //包头类型
-    quint32 m_totalBytes; //数据包实际大小
-    quint32 m_recvBytes; //已接收数据的大小
+    QByteArray m_buffer; //保存数据
 
-    QBuffer m_buffer; //数据缓存
-    quint32 m_infotype; //具体数据类型
-    int m_TargetAcc; //文件发送目标账号
-    QString m_fileName; //文件名称
+    /* 接收文件 */
+    QFile m_file; //操作文件
     quint32 m_fileSize; //文件大小
-    int m_recvFileSize; //已接收的文件数据大小
+    int FilePackAgeCount; //已接收文件数据包个数
+
+    /* 接收好友文件 */
+    int m_InfoType; //发送类型
+    int m_SendAcc; //发送方账号
+    double m_lastsize; //上次已接收大小
+    double m_nowsize; //本次已接收大小
+    QTime m_lastT; //上次接收时间
+    QTime m_nowT; //本次接收时间
 };
 
 #endif // TCPTHREAD_H

@@ -13,6 +13,8 @@ Account::Account(bool find,QWidget *parent) :
     ui(new Ui::Account)
 {
     ui->setupUi(this);
+    //设置标题
+    setWindowTitle("注册账号");
     //账户AccountLine只能输入数字
     ui->lineEdit->setValidator(new QRegExpValidator(QRegExp("[0-9]+$")));
     //密码PwdLineEdit只允许输入字母和数字
@@ -56,15 +58,18 @@ Account* Account::GetAccount(bool find)
     return m_Acc;
 }
 
-void Account::
-isFind(bool find)
+void Account::isFind(bool find)
 {
     //若为找回密码则更改界面
     if(find == true)
     {
+        //设置标题
+        setWindowTitle("找回密码");
         ui->label_2->hide();
         ui->lineEdit_2->hide();
         ui->label_3->setText("找回密码");
+        ui->Again->hide();
+        ui->AgainLine->hide();
         ui->pushButton->setText("找回");
     }
     m_find = find;
@@ -79,7 +84,7 @@ Account::~Account()
 void Account::closeEvent(QCloseEvent *event)
 {
     this->hide();
-    BacktoLogin(true);
+    emit BacktoLogin(true);
     //忽略要关闭这个窗口的事件.当前窗口不会被关闭
     event->ignore();
 }
@@ -124,14 +129,14 @@ void Account::DisConnectedFromSer(bool onl)
     {
         QMessageBox::warning(this,"警告","您已断开连接!");
         this->hide();
-        BacktoLogin(true);
+        emit BacktoLogin(true);
     }
 }
 
 void Account::on_pushButton_2_clicked()
 {
     this->hide();
-    BacktoLogin(true);
+    emit BacktoLogin(true);
 }
 
 void Account::on_pushButton_clicked()
@@ -142,9 +147,9 @@ void Account::on_pushButton_clicked()
         QMessageBox::warning(this,"警告","请输入账号!");
         return;
     }
-    if(ui->lineEdit->text().length() > 9)
+    if(ui->lineEdit->text().length() > 9 || ui->lineEdit->text().length() < 4)
     {
-        QMessageBox::warning(this,"警告","账号位数不得超过9位!");
+        QMessageBox::warning(this,"警告","账号位数为4到9位!");
         return;
     }
     if(m_find == false)
@@ -154,23 +159,33 @@ void Account::on_pushButton_clicked()
             QMessageBox::warning(this,"警告","请输入密码!");
             return;
         }
+        if(ui->lineEdit_2->text().length() < 6)
+        {
+            QMessageBox::information(this,"提示","密码位数至少为6位");
+            return;
+        }
+        if(ui->lineEdit_2->text() != ui->AgainLine->text())
+        {
+            QMessageBox::warning(this,"警告","两次输入的密码不一致!");
+            return;
+        }
     }
     //获取账号密码并发送，如果为找回密码则只发送账号
     int acc = ui->lineEdit->text().toInt();
     QString pwd = ui->lineEdit_2->text();
     if(m_find)
     {
-        AccountReq(FindPwd,acc);
+        emit AccountReq(FindPwd,acc);
         //在服务器返回结果前关闭按钮
         ui->pushButton->setEnabled(false);
         ui->pushButton->setStyleSheet("font-size:15px;color:black;border-style:none;border-radius:8px 8px;background-color:rgb(170,170,170);");
-        qDebug() << "找回密码";
+        //qDebug() << "找回密码";
     }
     else
     {
-        AccountReq(Registration,acc,pwd);
+        emit AccountReq(Registration,acc,pwd);
         ui->pushButton->setEnabled(false);
         ui->pushButton->setStyleSheet("font-size:15px;color:black;border-style:none;border-radius:8px 8px;background-color:rgb(170,170,170);");
-        qDebug() << "注册";
+        //qDebug() << "注册";
     }
 }

@@ -6,14 +6,12 @@
 #include <QJsonArray>
 #include <QJsonValue>
 #include <QtEndian>
-#include <QTime>
-#include <QCoreApplication>
 #include <QImage>
+#include <QDir>
 
 TcpThread::TcpThread(QObject *parent) : QObject(parent)
 {
-    m_type = 0;
-    m_recvBytes = 0;
+    m_InfoType = 0;
 }
 
 void TcpThread::StartConnect()
@@ -47,6 +45,11 @@ void TcpThread::GetClose()
     }
     m_tcp->close();
     m_tcp->deleteLater();
+    if(m_file.isOpen())
+    {
+        m_file.close();
+        m_file.remove();
+    }
     qDebug() << "线程已退出";
 }
 
@@ -55,7 +58,7 @@ void TcpThread::LoginToServer()
     MsgToJson(LoginAcc);
 }
 
-void TcpThread::SendFile(QString fileName,quint32 type)
+void TcpThread::SendFile(QString fileName,quint32 type,int Recvaccount)
 {
     qDebug() << "正在发送文件...";
     QByteArray dataPackage;
@@ -66,13 +69,14 @@ void TcpThread::SendFile(QString fileName,quint32 type)
     //获取文件名
     QString fName = fileName.split("/").last();
     //发送的文件头包大小 (QString用QDataStream序列化其大小会*2后+4)
-    quint32 size = sizeof(type) + sizeof(m_Recvaccount) + sizeof(fileSize) + fName.size() * 2 + 4;
+    quint32 size = sizeof(type) + sizeof(Recvaccount) + sizeof(fileSize) + fName.size() * 2 + 4;
 
     //发送文件头数据
     out << quint16(FileInfoHead);
     out << quint32(0);
     out << size;
-    out << type << m_Recvaccount << fileSize << fName;
+    out << type << Recvaccount << fileSize << fName;
+    dataPackage.resize(BufferSize);
 
     m_tcp->write(dataPackage);
     m_tcp->waitForBytesWritten();
@@ -80,7 +84,7 @@ void TcpThread::SendFile(QString fileName,quint32 type)
 
     file.open(QFile::ReadOnly);
     //发送小文件
-    if(fileSize < BufferSize)
+    if(fileSize < NoHeadBufSize)
     {
         qDebug() << "发送小文件";
         //发送文件数据
@@ -97,20 +101,21 @@ void TcpThread::SendFile(QString fileName,quint32 type)
         fileEndOut << quint32(0);
         fileEndOut << quint32(fileData.size());
         dataPackage.append(fileData);
+        dataPackage.resize(BufferSize);
 
         m_tcp->write(dataPackage);
         m_tcp->waitForBytesWritten();
     }
     else
     {
-        quint32 lastPackSize = fileSize % BufferSize;
-        int SendTimes = fileSize / BufferSize;
+        quint32 lastPackSize = fileSize % NoHeadBufSize; //包尾大小
+        int SendTimes = fileSize / NoHeadBufSize; //总需发送
         if(lastPackSize == 0)
         {
             //如果文件大小刚好为BufferSize的整数倍
             //将普通数据包发送次数减一，最后一次改为发送包尾，将最后一次发送数据的大小设置为BufferSize
             SendTimes -= 1;
-            lastPackSize = BufferSize;
+            lastPackSize = NoHeadBufSize;
             qDebug() << "文件总大小:" << fileSize << "总共需要发送" << SendTimes << "个数据包,文件尾数据包大小为: " << lastPackSize;
         }
         else
@@ -118,20 +123,64 @@ void TcpThread::SendFile(QString fileName,quint32 type)
             qDebug() << "文件总大小:" << fileSize << "总共需要发送" << SendTimes + 1 << "个数据包,文件尾数据包大小为: " << lastPackSize;
         }
 
-
-        for(int i = 0; i < SendTimes; i++)
+        //若为发送文件需发送当前发送进度
+        if(type == SendFileToFri)
         {
-            QByteArray fileData = file.read(BufferSize);
-            QDataStream fileDataOut(&dataPackage,QIODevice::WriteOnly);
+            //进度相关变量
+            double lastsize = 0; //上次发送数据量
+            double nowsize = 0; //本次发送数据量
+            QTime lasttime = QTime::currentTime(); //上次发送时间
+            QTime nowtime; //本次发送时间
 
-            fileDataOut << quint16(FileDataHead);
-            fileDataOut << quint32(0);
-            fileDataOut << quint32(BufferSize);
-            dataPackage.append(fileData);
+            //发送文件数据包
+            for(int i = 0; i < SendTimes; i++)
+            {
+                QByteArray fileData = file.read(NoHeadBufSize);
+                QDataStream fileDataOut(&dataPackage,QIODevice::WriteOnly);
 
-            m_tcp->write(dataPackage);
-            m_tcp->waitForBytesWritten();
-            dataPackage.clear();
+                fileDataOut << quint16(FileDataHead);
+                fileDataOut << quint32(0);
+                fileDataOut << quint32(NoHeadBufSize);
+                dataPackage.append(fileData);
+
+                int size = m_tcp->write(dataPackage);
+                m_tcp->waitForBytesWritten();
+                dataPackage.clear();
+
+                nowtime = QTime::currentTime();
+                if(lasttime.msecsTo(nowtime) >= 1000) //每秒钟发送一次
+                {
+                    nowsize = i * NoHeadBufSize; //获取当前已发送大小
+                    double speed = nowsize - lastsize; //当前已发送大小减去上次已发送大小即为每秒传输速度
+                    double progress = nowsize / fileSize * 100; //当前已发送大小除文件总大小即为已发送百分比
+                    double resttime = (fileSize - nowsize) / speed; //文件总大小减去当前已发送大小为剩余未发送大小，除以每秒速度则为剩下需发送的时间秒数
+                    QTime Zero(0,0);
+                    QTime restT = Zero.addSecs((int)resttime);
+                    emit SendProgressInfo(Recvaccount,fileName,(int)speed,(int)progress,restT,true);
+                    qDebug() << "当前传输速度: " << speed/1024/1024 << "MB/S, " << "进度: " << (int)progress << " ,剩余传输时间: " << resttime;
+                    //将当前时间和大小更新
+                    lastsize = nowsize;
+                    lasttime = nowtime;
+                }
+            }
+        }
+        else
+        {
+            //发送文件数据包
+            for(int i = 0; i < SendTimes; i++)
+            {
+                QByteArray fileData = file.read(NoHeadBufSize);
+                QDataStream fileDataOut(&dataPackage,QIODevice::WriteOnly);
+
+                fileDataOut << quint16(FileDataHead);
+                fileDataOut << quint32(0);
+                fileDataOut << quint32(NoHeadBufSize);
+                dataPackage.append(fileData);
+
+                int size = m_tcp->write(dataPackage);
+                m_tcp->waitForBytesWritten();
+                dataPackage.clear();
+            }
         }
 
         QByteArray fileEnd = file.readAll();
@@ -144,9 +193,22 @@ void TcpThread::SendFile(QString fileName,quint32 type)
         BfileEndOut << quint32(fileEnd.size());
         dataPackage.append(fileEnd);
 
+        //若数据包大小小于BufferSize,需将数据包填充至BufferSize
+        if(dataPackage.size() < BufferSize)
+        {
+            dataPackage.resize(BufferSize);
+        }
+
         int size = m_tcp->write(dataPackage);
         m_tcp->waitForBytesWritten();
         qDebug() << "包尾大小: " << size << "实际数据大小: " << fileEnd.size();
+
+        //文件发送完成
+        if(type == SendFileToFri)
+        {
+            //传输完成
+            emit SendProgressInfo(Recvaccount,fileName,-1,100,QTime(0,0),true);
+        }
     }
 }
 
@@ -158,29 +220,10 @@ void TcpThread::SendJson(QByteArray jsonData)
     out << quint32(0);
     out << quint32(jsonData.size());
     dataPackage.append(jsonData);
+    dataPackage.resize(BufferSize);
 
     m_tcp->write(dataPackage);
     m_tcp->waitForBytesWritten();
-}
-
-void TcpThread::WriteToFile(QString fileName)
-{
-    m_buffer.open(QIODevice::ReadOnly);
-
-    //将数据存入文件中
-    QFile file(fileName);
-    qDebug() << "写入文件: " << fileName << "中...";
-    file.open(QFile::WriteOnly);
-    if(m_buffer.size() > 0)
-    {
-        int size1 = file.write(m_buffer.readAll());
-        qDebug() << "m_buffer 写入" << size1;
-    }
-    int size2 = file.write(m_byteArray);
-    qDebug() << "m_byteArray 写入" << size2;
-    file.close();
-
-    m_buffer.close();
 }
 
 void TcpThread::connectToServer()
@@ -219,139 +262,121 @@ void TcpThread::ConnectSuccess()
 
 void TcpThread::ReadMsgFromServer()
 {
-    qDebug() << "开始读取服务器传来的数据";
-    if(m_tcp->bytesAvailable() == 0) //判断有没有数据;
-    {
-        qDebug() << "无数据或数据已读完";
-        return;
-    }
-    //读取包头或若仍有未读取完毕的数据则跳过直接读取数据
-    if(m_tcp->bytesAvailable() >= 10 && m_type == 0)
-    {
-        QByteArray bytearray = m_tcp->read(10);
-        QDataStream in(&bytearray,QIODevice::ReadOnly);
-
-        quint32 Empty;
-        in >> m_type  >> Empty >> m_totalBytes;
-        qDebug() << "包头数据,type:" << m_type << "totalBytes:" << m_totalBytes;
-    }
-    else if(m_type == 0) //若未开始读取则直接返回
-    {
-        return;
-    }
-    //有数据且本次数据未读完
-    while(m_tcp->bytesAvailable() && m_recvBytes < m_totalBytes)
-    {
-        m_byteArray.append(m_tcp->read(m_totalBytes - m_recvBytes));
-        m_recvBytes = m_byteArray.size();
-    }
-    //数据包读取完毕
-    if(m_recvBytes == m_totalBytes)
-    {
-        qDebug() << "数据包读取完毕,该数据包包头为:" << m_type;
-        switch(m_type)
-        {
-        case JsonDataHead:
-            emit ParseMsg(m_byteArray);
-            break;
-        case FileInfoHead:
-            {
-                QDataStream in(&m_byteArray,QIODevice::ReadOnly);
-                in >> m_infotype >> m_TargetAcc >> m_fileSize >> m_fileName;
-                m_recvFileSize = 0;
-                qDebug() << "文件包头信息:" << "infotype: " << m_infotype << "acc: " << m_TargetAcc
-                         << "fileSize: " << m_fileSize << "fileName:" << m_fileName;
-                m_buffer.open(QIODevice::ReadWrite | QIODevice::Truncate);
-            }
-            break;
-        case FileDataHead:
-            {
-                m_recvFileSize += m_buffer.write(m_byteArray);
-                qDebug() << "已接收的文件数据大小: " << m_recvFileSize;
-            }
-            break;
-        case FileEndDataHead:
-            {
-                switch(m_infotype)
-                {
-                case LoginAcc: //第一次登录才接收文件
-                    {
-                        qDebug() << "为第一次登录";
-
-                        QString accountS = QString::number(m_TargetAcc);
-
-                        QDir dir;
-                        //若无该账号本地文件夹则创建
-                        if(!dir.exists(Global::AppWorkPath() + "/" + accountS))
-                        {
-                            //创建用户数据文件夹
-                            if(!dir.mkdir(Global::AppWorkPath() + "/" + accountS))
-                            {
-                                qDebug() << "文件夹创建失败";
-                                return;
-                            }
-
-                            if(!dir.mkdir(Global::AppWorkPath() + "/" + accountS + "/FileRecv"))
-                            {
-                                qDebug() << "文件接收文件夹创建失败";
-                                return;
-                            }
-                            qDebug() << "文件夹创建成功，正在写入初始文件: " << accountS;
-                        }
-
-                        QString fileN = Global::AppWorkPath() + "/" + accountS + "/" + m_fileName;
-                        qDebug() << "接收文件地址: " << fileN;
-                        WriteToFile(fileN);
-                    }
-                    break;
-                case SearchFri:
-                    {
-                        QString filePath = Global::AppAllUserPath() + "/" + m_fileName;
-                        WriteToFile(filePath);
-                    }
-                    break;
-                case AddFri:
-                    {
-                        QString filePath = Global::AppAllUserPath() + "/" + m_fileName;
-                        WriteToFile(filePath);
-                    }
-                    break;
-                case SendMsg:
-                    {
-                        QString filePath = Global::UserFileRecvPath() + m_fileName;
-                        WriteToFile(filePath);
-                    }
-                    break;
-                case AskForData:
-                    {
-                        QString filePath = Global::AppAllUserPath() + "/" + m_fileName;
-                        WriteToFile(filePath);
-                    }
-                    break;
-                default:
-                    break;
-                }
-            }
-            break;
-        default:
-            break;
-        }
-
-        m_byteArray.clear();
-        m_type = 0;
-        m_totalBytes = 0;
-        m_recvBytes = 0;
-    }
-     //若数据未读取完则继续读取
     if(m_tcp->bytesAvailable())
     {
-        ReadMsgFromServer();
+        QByteArray RecvData = m_tcp->readAll();
+        int dataSize = RecvData.size();
+        //qDebug() << "当前已存储数据大小: " << m_buffer.size() << "此次读取数据大小: " << dataSize;
+
+        //刚好接收到数据包大小数据，且之前无未组成数据包的数据
+        if(dataSize == BufferSize && m_buffer.size() == 0)
+        {
+            SplitDataPackAge(RecvData);
+            //qDebug() << "直接收到数据包，处理...";
+            return;
+        }
+        //刚好收到数据包大小数据但已保存有数据则拼接处理后再拼接
+        else if(dataSize == BufferSize && m_buffer.size() > 0)
+        {
+            int MergeSize = BufferSize - m_buffer.size();
+            QByteArray MergeData = RecvData.left(MergeSize);
+            RecvData.remove(0,MergeSize);
+
+            m_buffer.append(MergeData);
+            if(m_buffer.size() == BufferSize)
+            {
+                SplitDataPackAge(m_buffer);
+                m_buffer.clear();
+                //qDebug() << "已拼接数据，处理中...";
+            }
+
+            m_buffer.append(RecvData);
+            //qDebug() << "拼接后余下数据为: " << m_buffer.size();
+            return;
+        }
+
+        //两次数据拼接后刚好够数据包大小
+        if((m_buffer.size() + dataSize) == BufferSize)
+        {
+            m_buffer.append(RecvData);
+            SplitDataPackAge(m_buffer);
+            m_buffer.clear();
+            //qDebug() << "拼接后刚好够数据包大小";
+            return;
+        }
+
+        //两次数据相加不够一个数据包大小,直接拼接
+        if((m_buffer.size() + dataSize) < BufferSize)
+        {
+            m_buffer.append(RecvData);
+            //qDebug() << "拼接";
+            return;
+        }
+
+        //若两次数据相加超过单个数据包大小则分包处理
+        if((m_buffer.size() + dataSize) > BufferSize)
+        {
+            //若无已保存数据且本次读取数据大于单个数据包大小则直接分包处理
+            if((dataSize > BufferSize) && (m_buffer.size() == 0))
+            {
+                while(dataSize/BufferSize)
+                {
+                    QByteArray package = RecvData.left(BufferSize);
+                    RecvData.remove(0,BufferSize);
+
+                    SplitDataPackAge(package);
+                    dataSize = RecvData.size();
+
+                    if((dataSize/BufferSize == 0) && (dataSize != 0))
+                    {
+                        m_buffer.append(RecvData);
+                    }
+                }
+                return;
+            }
+
+            //若本次读取数据大于单包大小且有已保存数据则先合并之前保存的数据后再分包处理
+            if((dataSize > BufferSize) && (m_buffer.size() > 0))
+            {
+                int MergeSize = BufferSize - m_buffer.size();
+                QByteArray MergeData = RecvData.left(MergeSize);
+                RecvData.remove(0,MergeSize);
+
+                m_buffer.append(MergeData);
+                if(m_buffer.size() == BufferSize)
+                {
+                    SplitDataPackAge(m_buffer);
+                    m_buffer.clear();
+                    //qDebug() << "已拼接数据，处理中...";
+                }
+
+                dataSize = RecvData.size();
+
+                while(dataSize/BufferSize)
+                {
+                    QByteArray package = RecvData.left(BufferSize);
+                    RecvData.remove(0,BufferSize);
+
+                    SplitDataPackAge(package);
+                    dataSize = RecvData.size();
+
+                    if((dataSize/BufferSize == 0) && (dataSize != 0))
+                    {
+                        m_buffer.append(RecvData);
+                    }
+                }
+                return;
+            }
+        }
+    }
+    else
+    {
+        return;
     }
 }
 
 void TcpThread::ParseMsg(QByteArray data)
 {
-    qDebug() << "解析数据中:" << data;
     QJsonObject obj = QJsonDocument::fromJson(data).object();
     int type = obj.value("type").toInt();
     switch(type)
@@ -360,14 +385,14 @@ void TcpThread::ParseMsg(QByteArray data)
     {
         qDebug() << "返回找回密码结果";
         QString pwd = obj.value("pwd").toString();
-        emit sendResultToAccMsg(FindPwd,pwd,"");
+        emit sendResultToAccMsg(type,pwd,"");
         break;
     }
     case Registration:
     {
         qDebug() << "返回注册结果";
         QString result = obj.value("result").toString();
-        emit sendResultToAccMsg(Registration,"",result);
+        emit sendResultToAccMsg(type,"",result);
         break;
     }
     case LoginAcc:
@@ -477,7 +502,7 @@ void TcpThread::ParseMsg(QByteArray data)
         if(result == "该好友已下线")
         {
             int targetAcc = obj.value("targetaccount").toInt();
-            emit sendResultToMainInterFace(AddFri,targetAcc,"","",result);
+            emit sendResultToMainInterFace(type,targetAcc,"","",result);
         }
         else
         {
@@ -514,18 +539,18 @@ void TcpThread::ParseMsg(QByteArray data)
         {
             QString uD = obj.value("userData").toString();
 
-            sendResultToMainInterFace(type,acc,uD,msg,msgType);
+            emit sendResultToMainInterFace(type,acc,uD,msg,msgType);
         }
         else if(msgType == "发送图片")
         {
             QString filePath = Global::UserFileRecvPath() + msg;
             qDebug() << "收到图片: " << filePath;
-            sendResultToMainInterFace(type,acc,"",filePath,msgType);
+            emit sendResultToMainInterFace(type,acc,"",filePath,msgType);
         }
         else
         {
             qDebug() << acc;
-            sendResultToMainInterFace(type,acc,"",msg,msgType);
+            emit sendResultToMainInterFace(type,acc,"",msg,msgType);
         }
         break;
     }
@@ -536,15 +561,24 @@ void TcpThread::ParseMsg(QByteArray data)
         QString Datas = obj.value("userdatas").toString();
         if(msgType == "请求自己的")
         {
-            emit sendResultToMainInterFace(AskForData,-1,Datas,"",msgType);
+            emit sendResultToMainInterFace(type,-1,Datas,"",msgType);
         }
         //否则为请求好友的
         else
         {
             QString result = obj.value("result").toString();
-            emit sendResultToMainInterFace(AskForData,acc,Datas,result,msgType);
+            emit sendResultToMainInterFace(type,acc,Datas,result,msgType);
         }
 
+        break;
+    }
+    case SendFileToFri:
+    {
+        int acc = obj.value("friacc").toInt();
+        QString msgType = obj.value("msgType").toString();
+        QString fileInfo = obj.value("fileInfo").toString();
+        qDebug() << "文件接收信息: " << fileInfo;
+        emit sendResultToMainInterFace(type,acc,"",fileInfo,msgType);
         break;
     }
     }
@@ -569,6 +603,7 @@ void TcpThread::MsgToJson(int type,int acc,int targetacc,QString Msg,QString Msg
 {
     QString fileName = "";
     int fileNums = -1;
+    int Recvaccount = -1;
     QJsonObject obj;
     obj.insert("type",type);
     switch(type)
@@ -630,7 +665,7 @@ void TcpThread::MsgToJson(int type,int acc,int targetacc,QString Msg,QString Msg
             obj.insert("msg",fName);
 
             fileNums = 1;
-            m_Recvaccount = targetacc;
+            Recvaccount = targetacc;
         }
         else
         {
@@ -660,18 +695,41 @@ void TcpThread::MsgToJson(int type,int acc,int targetacc,QString Msg,QString Msg
     {
         fileName = Global::UserHeadShot();
         QByteArray empty;
-        m_Recvaccount = acc;
-        SendToServer(empty,fileName,(InforType)type,1);
+        Recvaccount = acc;
+        SendToServer(empty,fileName,(InforType)type,1,Recvaccount);
         return;
+    }
+    case SendFileToFri:
+    {
+        qDebug() << "发送信息";
+        obj.insert("account",acc);
+        obj.insert("targetacc",targetacc);
+        obj.insert("msgtype",MsgType);
+
+        if(MsgType == "发送文件") //若为发送文件则添加文件发送信息
+        {
+            //取出文件名称
+            QString fName = Msg.split("/").last();
+            obj.insert("fileName",fName);
+
+            fileName = Msg;
+            fileNums = 1;
+            Recvaccount = targetacc;
+        }
+        else //否则为接收，直接发送json信息
+        {
+            obj.insert("fileName",Msg);
+        }
+        break;
     }
     }
     QJsonDocument doc(obj);
     QByteArray data = doc.toJson();
 
-    SendToServer(data,fileName,(InforType)type,fileNums);
+    SendToServer(data,fileName,(InforType)type,fileNums,Recvaccount);
 }
 
-void TcpThread::SendToServer(QByteArray jsondata, QString fileName,InforType type,int fileNums)
+void TcpThread::SendToServer(QByteArray jsondata, QString fileName,InforType type,int fileNums,int RecvAccount)
 {
     //若文件名不为空则为发送文件
     if(fileName != "")
@@ -682,12 +740,12 @@ void TcpThread::SendToServer(QByteArray jsondata, QString fileName,InforType typ
             QStringList fileNames = fileName.split("?");
             for(auto fileName : fileNames)
             {
-                SendFile(fileName,type);
+                SendFile(fileName,type,RecvAccount);
             }
         }
         else
         {
-            SendFile(fileName,type);
+            SendFile(fileName,type,RecvAccount);
         }
     }
 
@@ -695,9 +753,6 @@ void TcpThread::SendToServer(QByteArray jsondata, QString fileName,InforType typ
     {
         SendJson(jsondata);
     }
-
-    //发送完毕后清空
-    m_TargetAcc = 0;
 }
 
 void TcpThread::AutoConnect()
@@ -707,5 +762,165 @@ void TcpThread::AutoConnect()
     if(Global::isConnecting == true)
     {
         m_timer->stop();
+    }
+}
+
+void TcpThread::SplitDataPackAge(QByteArray data)
+{
+    //取出包头并从数据包中删除包头
+    QByteArray head = data.left(10);
+    data.remove(0,10);
+    QDataStream headD(&head,QIODevice::ReadOnly);
+
+    //取出包头内容
+    quint16 headType;
+    quint32 Empty;
+    quint32 totalBytes;
+    headD >> headType  >> Empty >> totalBytes;
+    //qDebug() << "接收到数据的包头类型" << headType << "总字节数:" << totalBytes;
+
+    switch(headType)
+    {
+    case JsonDataHead:
+        emit ParseMsg(data.left(totalBytes));
+        break;
+    case FileInfoHead:
+        {
+        QByteArray filehead = data.left(totalBytes);
+        QDataStream fHead(&filehead,QIODevice::ReadOnly);
+        quint32 infotype;
+        int RecvAccount;
+        QString fName;
+        fHead >> infotype >> RecvAccount >> m_fileSize >> fName;
+        qDebug() << "接收类型: " << infotype << "接收方账号: " << RecvAccount
+                 << "接收文件大小: " << m_fileSize << "接收文件名称: " << fName;
+        FilePackAgeCount = 0;
+
+        QString SaveFilePath;
+        switch(infotype)
+        {
+        case LoginAcc: //第一次登录才接收文件
+            {
+                qDebug() << "为第一次登录";
+
+                QString accountS = QString::number(RecvAccount);
+
+                QDir dir;
+                //若无该账号本地文件夹则创建
+                if(!dir.exists(Global::AppWorkPath() + "/" + accountS))
+                {
+                    //创建用户数据文件夹
+                    if(!dir.mkdir(Global::AppWorkPath() + "/" + accountS))
+                    {
+                        qDebug() << "文件夹创建失败";
+                        return;
+                    }
+
+                    if(!dir.mkdir(Global::AppWorkPath() + "/" + accountS + "/FileRecv"))
+                    {
+                        qDebug() << "文件接收文件夹创建失败";
+                        return;
+                    }
+                    qDebug() << "文件夹创建成功，正在写入初始文件: " << accountS;
+                }
+
+                SaveFilePath = Global::AppWorkPath() + "/" + accountS + "/" + fName;
+                qDebug() << "接收文件地址: " << SaveFilePath;
+                m_file.setFileName(SaveFilePath);
+                m_file.open(QFile::WriteOnly);
+            }
+            break;
+        case SearchFri:
+            {
+                SaveFilePath = Global::AppAllUserPath() + "/" + fName;
+                m_file.setFileName(SaveFilePath);
+                m_file.open(QFile::WriteOnly | QFile::Truncate);
+            }
+            break;
+        case AddFri:
+            {
+                SaveFilePath = Global::AppAllUserPath() + "/" + fName;
+                m_file.setFileName(SaveFilePath);
+                m_file.open(QFile::WriteOnly | QFile::Truncate);
+            }
+            break;
+        case SendMsg:
+            {
+                SaveFilePath = Global::UserFileRecvPath() + fName;
+                m_file.setFileName(SaveFilePath);
+                m_file.open(QFile::WriteOnly | QFile::Truncate);
+            }
+            break;
+        case AskForData:
+            {
+                SaveFilePath = Global::AppAllUserPath() + "/" + fName;
+                m_file.setFileName(SaveFilePath);
+                m_file.open(QFile::WriteOnly | QFile::Truncate);
+            }
+            break;
+        case SendFileToFri:
+            {
+                m_InfoType = SendFileToFri; //将类型设置为发送文件类型
+                m_SendAcc = RecvAccount; //获取发送方账号
+                //初始化进度相关变量
+                m_lastsize = 0;
+                m_nowsize = 0;
+                m_lastT = QTime::currentTime();
+
+                SaveFilePath = Global::IsFileExist(Global::UserFileRecvPath() + fName);
+                m_file.setFileName(SaveFilePath);
+                m_file.open(QFile::WriteOnly | QFile::Truncate);
+            }
+            break;
+        default:
+            break;
+        }
+        }
+        break;
+    case FileDataHead:
+        {
+            FilePackAgeCount++;
+            m_file.write(data);
+            if(m_InfoType == SendFileToFri)
+            {
+                m_nowT = QTime::currentTime();
+                if(m_lastT.msecsTo(m_nowT) >= 1000) //每秒发送一次
+                {
+                    m_nowsize = FilePackAgeCount * NoHeadBufSize; //获取当前已接收大小
+                    double speed = m_nowsize - m_lastsize; //当前接收大小减去上次接收大小即为每秒传输速度
+                    double progress = m_nowsize / m_fileSize * 100; //当前接收大小除文件总大小即为百分比
+                    double restT = (m_fileSize - m_nowsize) / speed; //文件总大小减去当前接收大小，除速度即为剩余下载时间
+                    QTime Zero(0,0);
+                    QTime restTime = Zero.addSecs((int)restT);
+                    qDebug() << "当前传输速度: " << speed / 1024 / 1024 << "MB/S, " << "进度: " << (int)progress << " ,剩余传输时间: " << restTime;
+                    emit SendProgressInfo(m_SendAcc,m_file.fileName(),(int)speed,(int)progress,restTime,false);
+                    m_lastsize = m_nowsize;
+                    m_lastT = m_nowT;
+                }
+            }
+            /*
+            if(FilePackAgeCount % 1000 == 0)
+            {
+                qDebug() << "已接收的文件数据大小: " << m_file.size()
+                         << "文件总大小: " << m_fileSize << "已接收数据包个数: " << FilePackAgeCount;
+            }
+            */
+        }
+        break;
+    case FileEndDataHead:
+        {
+            qDebug() << "接收文件包尾数据: " << totalBytes << "已接收文件总大小: " << m_file.size() << "已接收数据包个数: " << FilePackAgeCount + 1;
+            m_file.write(data.left(totalBytes));
+            if(m_InfoType == SendFileToFri)
+            {
+                //发送文件接收完成信号并重置文件接收相关变量
+                emit SendProgressInfo(m_SendAcc,m_file.fileName(),-1,100,QTime(0,0),false);
+                m_InfoType = 0;
+            }
+            m_file.close();
+        }
+        break;
+    default:
+        break;
     }
 }

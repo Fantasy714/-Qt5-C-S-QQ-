@@ -3,6 +3,7 @@
 #include <QPainter>
 #include <QMessageBox>
 #include <QDebug>
+#include <QGraphicsDropShadowEffect>
 
 AddFriend::AddFriend(bool type,QStringList gn, QStringList umsg, QString yanzheng, QWidget *parent) :
     QWidget(parent),
@@ -12,8 +13,19 @@ AddFriend::AddFriend(bool type,QStringList gn, QStringList umsg, QString yanzhen
 
     m_type = type;
 
-    //true为发送好友申请界面，false为接收界面
+    //设置背景透明
+    setAttribute(Qt::WA_TranslucentBackground);
+    //设置阴影边框
+    QGraphicsDropShadowEffect * shadow = new QGraphicsDropShadowEffect(ui->frame);
+    shadow->setOffset(0,0);
+    shadow->setColor(Qt::black);
+    shadow->setBlurRadius(10);
+    ui->frame->setGraphicsEffect(shadow);
+    //安装事件过滤器，处理绘画事件
+    ui->frame->installEventFilter(this);
+    update();
 
+    //true为发送好友申请界面，false为接收界面
     if(type == false)
     {
         //若有验证消息则添加验证消息
@@ -58,7 +70,6 @@ AddFriend::AddFriend(bool type,QStringList gn, QStringList umsg, QString yanzhen
     connect(ui->MiniBtn,&QToolButton::clicked,this,&AddFriend::showMinimized);
     //若为收到好友申请则关闭等同忽略该好友申请
     connect(ui->CloseBtn,&QToolButton::clicked,this,[=](){
-            qDebug() << "退出好友申请界面";
             emit CloseAddFriend();
     });
 }
@@ -68,18 +79,34 @@ AddFriend::~AddFriend()
     delete ui;
 }
 
+void AddFriend::initShadow()
+{
+    QPainter painter(ui->frame);
+    painter.fillRect(ui->frame->rect().adjusted(-10,-10,10,10),QColor(220,220,220));
+}
+
+bool AddFriend::eventFilter(QObject *w, QEvent *e)
+{
+    if((w == ui->frame) && (e->type() == QEvent::Paint)){
+        initShadow();
+        return true;
+    }
+
+    return QWidget::eventFilter(w,e);
+}
+
 void AddFriend::mousePressEvent(QMouseEvent *e)
 {
     if(e->button() == Qt::LeftButton)
     {
-        isMainWidget = true;
+        isPressed = true;
         m_point = e->globalPos() - pos();
     }
 }
 
 void AddFriend::mouseMoveEvent(QMouseEvent *e)
 {
-    if(e->buttons() & Qt::LeftButton && isMainWidget)
+    if(e->buttons() & Qt::LeftButton && isPressed)
     {
         move(e->globalPos() - m_point);
     }
@@ -88,7 +115,7 @@ void AddFriend::mouseMoveEvent(QMouseEvent *e)
 void AddFriend::mouseReleaseEvent(QMouseEvent *event)
 {
     //释放时将bool值恢复false
-    isMainWidget = false;
+    isPressed = false;
 }
 
 void AddFriend::on_NoBtn_clicked()

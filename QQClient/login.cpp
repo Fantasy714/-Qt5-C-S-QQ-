@@ -6,7 +6,6 @@
 #include <QGraphicsColorizeEffect>
 #include <QThread>
 #include <QListWidget>
-#include <QRegion>
 #include <QMessageBox>
 #include <QTimer>
 #include <QPainter>
@@ -21,11 +20,25 @@ Login::Login(QWidget *parent)
     ui->setupUi(this);
     //设置无边框窗口,任务栏不显示
     setWindowFlags(Qt::FramelessWindowHint | Qt::SplashScreen | Qt::WindowStaysOnTopHint);
+
+    //设置背景透明
+    setAttribute(Qt::WA_TranslucentBackground);
+
     //初始化主界面动态图
     m_movie = new QMovie(":/lib/main.gif");
     m_movie->setScaledSize(QSize(430,130));
     ui->MovieLabel->setMovie(m_movie);
     m_movie->start();
+
+    //设置阴影边框
+    QGraphicsDropShadowEffect * shadow = new QGraphicsDropShadowEffect(ui->frame);
+    shadow->setOffset(0,0);
+    shadow->setColor(Qt::black);
+    shadow->setBlurRadius(10);
+    ui->frame->setGraphicsEffect(shadow);
+    //安装事件过滤器,处理frame的绘画事件
+    ui->frame->installEventFilter(this);
+    update();
 
     //初始化用户数据
     initUserData();
@@ -65,6 +78,23 @@ Login::~Login()
     delete ui;
 }
 
+void Login::initShadow()
+{
+    QPainter painter(ui->frame);
+    painter.fillRect(ui->frame->rect().adjusted(-10,-10,10,10),QColor(220,220,220));
+}
+
+bool Login::eventFilter(QObject *w, QEvent *e)
+{
+    if((w == ui->frame) && (e->type() == QEvent::Paint))
+    {
+        initShadow();
+        return true;
+    }
+
+    return QWidget::eventFilter(w,e);
+}
+
 void Login::mousePressEvent(QMouseEvent *e)
 {
     if(e->button() == Qt::LeftButton)
@@ -98,10 +128,10 @@ void Login::InitSysTrayicon()
     connect(m_show,&QAction::triggered,this,&Login::ShowWindow);
 
     m_quit = new QAction("退出",this);
-    connect(m_quit,&QAction::triggered,this,&QApplication::quit);
+    connect(m_quit,&QAction::triggered,this,&Login::on_CloseToolBtn_clicked);
     m_menu = new QMenu(this);
-    m_menu->addAction(m_show);
 
+    m_menu->addAction(m_show);
     m_menu->addSeparator();
     m_menu->addAction(m_quit);
 
@@ -117,7 +147,7 @@ void Login::InitSysTrayicon()
 
 void Login::on_CloseToolBtn_clicked()
 {
-    qDebug() << "正常退出";
+    //qDebug() << "正常退出";
     emit LoginClose(); //发送关闭信号
     QThread::msleep(25); //等待25毫秒等待线程定时器暂停
     QApplication::quit();
@@ -207,11 +237,13 @@ void Login::initUserData()
 {
     QDir dir;
     QFile file;
+    //查找本地保存账号
     dir.setPath(Global::AppWorkPath());
     QStringList dirNames = dir.entryList(QDir::Dirs);
     dirNames.removeOne(".");
     dirNames.removeOne("..");
     dirNames.removeOne("allusers");
+    //若无已保存账号则头像显示默认头像
     if(dirNames.isEmpty())
     {
         QPixmap pix = Global::CreateHeadShot(":/lib/default.jpg");
@@ -221,7 +253,7 @@ void Login::initUserData()
     {
         m_Accs.append(dirName);
         file.setFileName(Global::AppWorkPath() + "/" + dirName + "/login.txt");
-        qDebug() << file.fileName() << file.exists();
+        //qDebug() << file.fileName() << file.exists();
         if(!file.open(QFile::ReadOnly))
         {
             qDebug() << "打开用户login文件失败";
@@ -230,6 +262,10 @@ void Login::initUserData()
         file.close();
         QString userMsg = QString(data);
         //逗号拆分用户登录信息
+        /*
+         * 用户登录文件格式
+         * 昵称     头像位置     记住/不记住     记住为密码，不记住则为空
+         */
         QStringList Msgs = userMsg.split("@@");
         m_Names.append(Msgs.at(0));
         m_Icons.append(Global::AppWorkPath() + "/" + dirName + "/" + Msgs.at(1));
@@ -390,6 +426,19 @@ void Login::on_pushButton_clicked()
         }
         return;
     }
+
+    //检查账号密码合法性
+    if(acc.length() < 4 || acc.length() > 9)
+    {
+        QMessageBox::information(this,"提示","账号为4至9位!");
+        return;
+    }
+    if(pwd.length() < 6)
+    {
+        QMessageBox::information(this,"提示","密码至少6位");
+        return;
+    }
+
     //检查是否登录服务器
     if(!Global::isConnecting)
     {

@@ -11,8 +11,9 @@
 #include <QMessageBox>
 #include <QMetaMethod>
 #include <QTimer>
+#include <QScrollBar>
 
-#define Margin 10
+#define Margin 6
 
 MainInterface::MainInterface(QWidget *parent) :
     QWidget(parent),
@@ -20,13 +21,28 @@ MainInterface::MainInterface(QWidget *parent) :
 {
     ui->setupUi(this);
 
+    //创建用户数据目录
     Global::CreateWorkPath();
 
     //设置无边框窗口
     setWindowFlags(Qt::FramelessWindowHint | Qt::SplashScreen | Qt::WindowStaysOnTopHint);
 
-    //初始化窗口阴影
-    initShadow();
+    //设置背景透明
+    setAttribute(Qt::WA_TranslucentBackground);
+
+    //初始化全局路径，全屏闭合回路
+    m_pixmap = QPixmap(this->width(),this->height());
+    m_globalPath.lineTo(m_pixmap.width(), 0);
+    m_globalPath.lineTo(m_pixmap.width(), m_pixmap.height());
+    m_globalPath.lineTo(0, m_pixmap.height());
+    m_globalPath.lineTo(0, 0);
+
+    //设置阴影边框
+    QGraphicsDropShadowEffect * shadow = new QGraphicsDropShadowEffect(ui->frame);
+    shadow->setOffset(0,0);
+    shadow->setColor(Qt::black);
+    shadow->setBlurRadius(10);
+    ui->frame->setGraphicsEffect(shadow);
 
     //设置鼠标追踪
     setMouseTracking(true);
@@ -38,6 +54,10 @@ MainInterface::MainInterface(QWidget *parent) :
     QAction * searchAc = new QAction(ui->SearchEdit);
     searchAc->setIcon(QIcon(":/lib/search.png"));
     ui->SearchEdit->addAction(searchAc,QLineEdit::LeadingPosition);
+
+    //安装事件过滤器，处理绘画事件
+    ui->frame->installEventFilter(this);
+    update();
 
     //初始化登录界面
     m_log = new Login(this);
@@ -74,6 +94,8 @@ MainInterface::MainInterface(QWidget *parent) :
 
     connect(ui->AddFriends,&QToolButton::clicked,this,&MainInterface::ShowFindFri);
     connect(ui->AddFriends_2,&QToolButton::clicked,this,&MainInterface::ShowFindFri);
+
+    ui->treeWidget->verticalScrollBar()->setStyleSheet(Global::scrollbarStyle);
 }
 
 MainInterface::~MainInterface()
@@ -110,6 +132,7 @@ MainInterface::~MainInterface()
     thread->deleteLater();
     m_mytcp->deleteLater();
     m_log->deleteLater();
+    m_editData->deleteLater();
     for(auto chat : m_chatWindows)
     {
         chat->deleteLater();
@@ -144,10 +167,7 @@ void MainInterface::GetResultFromSer(int type,int targetAcc,QString uData,QStrin
     {
         //标记为已登录
         isLogined = true;
-
-        //标记为位于中心
         m_loc = Center;
-        setCursor(QCursor(Qt::ArrowCursor));
 
         //设置用户头像
         ui->HeadShotBtn->setToolTip("设置个人资料");
@@ -317,6 +337,16 @@ void MainInterface::GetResultFromSer(int type,int targetAcc,QString uData,QStrin
         }
         break;
     }
+    case SendFileToFri:
+    {
+        if(MsgType == "发送文件")
+        {
+            ChatWindow * ctw = showFriChatWindow(targetAcc);
+            ctw->SendOrRecvFile(false,Msg);
+            return;
+        }
+        break;
+    }
     }
 }
 
@@ -416,7 +446,7 @@ void MainInterface::mouseMoveEvent(QMouseEvent *e)
             {
                 cRect.setY(glbPos.y());
             }
-            if(BottomRight.x() - glbPos.x() > this->minimumWidth())
+            if(BottomRight.x() - glbPos.x() < this->maximumWidth() && BottomRight.x() - glbPos.x() > this->minimumWidth())
             {
                 cRect.setX(glbPos.x());
             }
@@ -448,15 +478,16 @@ void MainInterface::mouseMoveEvent(QMouseEvent *e)
     //若拖动后tabWidget宽度更改则同步更改tab的宽度
     if(ui->tabWidget->width() != TabWidgetWidth)
     {
-        ui->tabWidget->setStyleSheet(QString("QTabBar::tab{font:20px;width:%1px;height:30px;border-style:solid;border-top-width:0px;border-left-width:0px;"
+        ui->tabWidget->setStyleSheet(QString("QTabBar::tab{font:20px;margin-left:35px;width:%1px;margin-right:35px;height:30px;border-style:solid;border-top-width:0px;border-left-width:0px;"
                                              "border-right-width:0px;border-bottom-width:1px;border-color:rgb(200,200,200);background-color:white;}QTabBar::tab:selected"
-                                             "{border-bottom-width:3px;border-color:rgb(40,192,253);}QWidget{background-color:white;}").arg(ui->tabWidget->width() / 2));
+                                             "{border-bottom-width:3px;border-color:rgb(40,192,253);}QWidget{background-color:white;}").arg(ui->tabWidget->width() / 2 - 70));
         TabWidgetWidth = ui->tabWidget->width();
     }
 }
 
 void MainInterface::mouseReleaseEvent(QMouseEvent *event)
 {
+    Q_UNUSED(event);
     //释放时将bool值恢复false,鼠标恢复默认状态
     setCursor(QCursor(Qt::ArrowCursor));
     m_loc = Center;
@@ -534,6 +565,17 @@ void MainInterface::ChangeCurSor(const QPoint &p)
     }
 }
 
+bool MainInterface::eventFilter(QObject *w, QEvent *e)
+{
+    if((w == ui->frame) && (e->type() == QEvent::Paint))
+    {
+        initShadow();
+        return true;
+    }
+
+    return QWidget::eventFilter(w,e);
+}
+
 void MainInterface::GetFriendsData()
 {
     //读取用户本地存放好友的json文件
@@ -579,6 +621,8 @@ void MainInterface::InitTreeWidget()
     ui->treeWidget->setIndentation(0);
     //右键菜单
     ui->treeWidget->setContextMenuPolicy(Qt::CustomContextMenu);
+    //不获得焦点
+    ui->treeWidget->setFocusPolicy(Qt::NoFocus);
 
     connect(ui->treeWidget,&QTreeWidget::itemClicked,this,&MainInterface::onTreeWidgetClicked);
     connect(ui->treeWidget,&QTreeWidget::itemDoubleClicked,this,&MainInterface::onTreeWidgetDoubleClicked);
@@ -615,6 +659,7 @@ QTreeWidgetItem *MainInterface::CreateTreeWidgetItem(QString fenzuming, int acc)
     if(acc == -1)
     {
         QTreeWidgetItem * item = new QTreeWidgetItem(engroup);
+        item->setSizeHint(0,QSize(ui->treeWidget->width(),36));
 
         QPixmap pix(":/lib/FLeftArrow.png");
         pix = pix.scaled(12,12);
@@ -635,6 +680,8 @@ QTreeWidgetItem *MainInterface::CreateTreeWidgetItem(QString fenzuming, int acc)
         item->setIcon(0,QIcon(pix));
 
         item->setText(0,QString("%1\n%2").arg(m_frinicknames[acc]).arg(m_frisignatures[acc]));
+        //设置提示
+        item->setToolTip(0,QString("%1(%2)").arg(m_frinicknames[acc]).arg(acc));
         //设置好友行行高
         item->setSizeHint(0,QSize(0,60));
         return item;
@@ -644,7 +691,7 @@ QTreeWidgetItem *MainInterface::CreateTreeWidgetItem(QString fenzuming, int acc)
 void MainInterface::InitFriRitBtnMenu()
 {
     //初始化好友菜单
-    m_Chat = new QAction(QIcon(":/lib/Chat.png"),"发送即时信息");
+    m_Chat = new QAction(QIcon(":/lib/Chat.png"),"发送即时信息",this);
     connect(m_Chat,&QAction::triggered,this,[=](){
         if(m_friItem)
         {
@@ -653,7 +700,7 @@ void MainInterface::InitFriRitBtnMenu()
         }
     });
 
-    m_FriData = new QAction("查看资料");
+    m_FriData = new QAction("查看资料",this);
     connect(m_FriData,&QAction::triggered,[=](){
        int acc = m_friItem->data(0,Qt::UserRole).toInt();
        emit SendMsgToServer(AskForData,acc,-1,"","请求好友的");
@@ -664,13 +711,13 @@ void MainInterface::InitFriRitBtnMenu()
     //初始化移动好友菜单
     for(auto gN : m_groupNames)
     {
-        QAction * act = new QAction(gN);
+        QAction * act = new QAction(gN,this);
         connect(act,&QAction::triggered,this,&MainInterface::MoveFriend);
         m_movegroups.insert(gN,act);
         m_moveFri->addAction(act);
     }
 
-    m_delete = new QAction(QIcon(":/lib/delete.png"),"删除好友");
+    m_delete = new QAction(QIcon(":/lib/delete.png"),"删除好友",this);
     connect(m_delete,&QAction::triggered,this,&MainInterface::DelFri);
 
     m_frimenu = new QMenu(this);
@@ -680,13 +727,13 @@ void MainInterface::InitFriRitBtnMenu()
     m_frimenu->addAction(m_delete);
 
     //初始化分组菜单
-    m_addgrp = new QAction("添加分组");
+    m_addgrp = new QAction("添加分组",this);
     connect(m_addgrp,&QAction::triggered,this,&MainInterface::AddGroup);
 
-    m_renamegrp = new QAction("重命名");
+    m_renamegrp = new QAction("重命名",this);
     connect(m_renamegrp,&QAction::triggered,this,&MainInterface::ReNameGroup);
 
-    m_removegrp = new QAction(QIcon(":/lib/delete.png"),"删除分组");
+    m_removegrp = new QAction(QIcon(":/lib/delete.png"),"删除分组",this);
     connect(m_removegrp,&QAction::triggered,this,&MainInterface::RemoveGroup);
 
     m_grpmenu = new QMenu(this);
@@ -751,13 +798,30 @@ void MainInterface::Reconnection(bool onl)
 
 void MainInterface::SendMsgToFri(int targetAcc,MsgType type, QString msg)
 {
-    if(type == itsMsg)
+    switch(type)
+    {
+    case itsMsg:
     {
         emit SendMsgToServer(SendMsg,Global::UserAccount(),targetAcc,msg,"普通信息");
+        break;
     }
-    else if(type == itsPicture)
+    case itsPicture:
     {
         emit SendMsgToServer(SendMsg,Global::UserAccount(),targetAcc,msg,"发送图片");
+        break;
+    }
+    case itsFile:
+    {
+        emit SendMsgToServer(SendFileToFri,Global::UserAccount(),targetAcc,msg,"发送文件");
+        break;
+    }
+    case RecvFile:
+    {
+        emit SendMsgToServer(SendFileToFri,Global::UserAccount(),targetAcc,msg,"接收文件");
+        break;
+    }
+    default:
+        break;
     }
 }
 
@@ -778,8 +842,10 @@ ChatWindow* MainInterface::showFriChatWindow(int acc)
     {
         ctw = new ChatWindow(acc,m_frinicknames[acc]);
         connect(ctw,&ChatWindow::SendMsgToFri,this,&MainInterface::SendMsgToFri);
+        connect(m_mytcp,&TcpThread::SendProgressInfo,ctw,&ChatWindow::GetProgressInfo);
         m_chatWindows.insert(acc,ctw);
     }
+    ctw->activateWindow();
     ctw->showNormal();
     return ctw;
 }
@@ -842,6 +908,7 @@ void MainInterface::ChangeUserDatas(QString datas)
 
 void MainInterface::ChangingLoginFile(QString NkN, QString pwd)
 {
+    Q_UNUSED(pwd);
     //更改昵称
     if(NkN != "")
     {
@@ -887,21 +954,17 @@ void MainInterface::ChangingHeadShot()
 
 void MainInterface::initShadow()
 {
-    //设置背景透明
-    setAttribute(Qt::WA_TranslucentBackground);
-
-    //设置阴影边框
-    QGraphicsDropShadowEffect * shadow = new QGraphicsDropShadowEffect(this);
-    shadow->setOffset(0,0);
-    shadow->setColor(Qt::black);
-    shadow->setBlurRadius(15);
-    this->setGraphicsEffect(shadow);
+    QPainter painter(ui->frame);
+    painter.fillRect(ui->frame->rect().adjusted(-10,-10,10,10),QColor(220,220,220));
 }
 
 void MainInterface::paintEvent(QPaintEvent *event)
 {
+    Q_UNUSED(event);
     QPainter painter(this);
-    painter.fillRect(this->rect().adjusted(15,15,-15,-15),QColor(220,220,220));
+    painter.setPen(Qt::transparent);
+    painter.setBrush(QColor(0,0,0,1)); //窗口全透明无法接收鼠标移动事件
+    painter.drawPath(m_globalPath); //绘制全局路径
 }
 
 void MainInterface::on_CloseBtn_clicked()
@@ -983,10 +1046,12 @@ void MainInterface::FriRightBtnMenu(const QPoint &pos)
              * 用户若在重命名分组未更改时直接右键点击其他分组名那么上一个
              * 分组便依然为可编辑状态，需在此将上一个分组设置回不可编辑
              */
+            /*
             if(m_chaggrpitem != nullptr)
             {
                 m_chaggrpitem->setFlags(Qt::ItemIsEnabled);
             }
+            */
 
             qDebug() << "233";
             m_chaggrpitem = sitem;
@@ -1106,7 +1171,7 @@ void MainInterface::ItemNameChanged(QTreeWidgetItem *item)
             item->setFlags(Qt::ItemIsEnabled);
 
             //同步添加好友移动分组菜单
-            QAction * act = new QAction(gn);
+            QAction * act = new QAction(gn,this);
             connect(act,&QAction::triggered,this,&MainInterface::MoveFriend);
             m_movegroups.insert(gn,act);
             m_moveFri->addAction(act);

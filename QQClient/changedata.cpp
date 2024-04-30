@@ -16,8 +16,19 @@ ChangeData::ChangeData(QStringList uD, QWidget *parent) :
 
     //设置窗口无边框
     setWindowFlags(Qt::FramelessWindowHint);
-    //初始化窗口边框阴影
-    initShadow();
+
+    //设置背景透明
+    setAttribute(Qt::WA_TranslucentBackground);
+    //设置阴影边框
+    QGraphicsDropShadowEffect * shadow = new QGraphicsDropShadowEffect(ui->frame);
+    shadow->setOffset(0,0);
+    shadow->setColor(Qt::black);
+    shadow->setBlurRadius(10);
+    ui->frame->setGraphicsEffect(shadow);
+
+    //安装事件过滤器，处理绘画事件
+    ui->frame->installEventFilter(this);
+    update();
 
     //初始化窗口信息
     setWindowTitle("修改资料");
@@ -46,7 +57,7 @@ ChangeData::ChangeData(QStringList uD, QWidget *parent) :
     ui->blood->setCurrentText(uD.at(Dblood_type));
 
     //限制用户输入@
-    QRegExp rx = QRegExp("[^@]*"); //限制以下特殊符号在lineEdit中的输入
+    QRegExp rx = QRegExp("[^@]*"); //限制特殊符号在lineEdit中的输入
     QRegExpValidator* validator = new QRegExpValidator(rx);
     ui->nickname->setValidator(validator);
     ui->signature->setValidator(validator);
@@ -77,6 +88,17 @@ ChangeData::~ChangeData()
     delete ui;
 }
 
+bool ChangeData::eventFilter(QObject *w, QEvent *e)
+{
+    if((w == ui->frame) && (e->type() == QEvent::Paint))
+    {
+        initShadow();
+        return true;
+    }
+
+    return QWidget::eventFilter(w,e);
+}
+
 void ChangeData::mousePressEvent(QMouseEvent *e)
 {
     if(e->button() == Qt::LeftButton)
@@ -104,21 +126,8 @@ void ChangeData::mouseReleaseEvent(QMouseEvent *event)
 
 void ChangeData::initShadow()
 {
-    //设置背景透明
-    setAttribute(Qt::WA_TranslucentBackground);
-
-    //设置阴影边框
-    QGraphicsDropShadowEffect * shadow = new QGraphicsDropShadowEffect(this);
-    shadow->setOffset(0,0);
-    shadow->setColor(Qt::black);
-    shadow->setBlurRadius(10);
-    this->setGraphicsEffect(shadow);
-}
-
-void ChangeData::paintEvent(QPaintEvent *event)
-{
-    QPainter painter(this);
-    painter.fillRect(this->rect().adjusted(10,10,-10,-10),QColor(220,220,220));
+    QPainter painter(ui->frame);
+    painter.fillRect(ui->frame->rect().adjusted(-10,-10,10,10),QColor(220,220,220));
 }
 
 void ChangeData::TextChanged()
@@ -141,14 +150,14 @@ void ChangeData::TextChanged()
 void ChangeData::on_Save_clicked()
 {
     //输入有效性检查
-    if(ui->nickname->text().length() > 10)
+    if(ui->nickname->text().length() > 15)
     {
-        QMessageBox::warning(this,"警告","昵称不能超过10个字!");
+        QMessageBox::warning(this,"警告","昵称不能超过15个字!");
         return;
     }
-    if(ui->signature->text().length() > 20)
+    if(ui->signature->text().length() > 25)
     {
-        QMessageBox::warning(this,"警告","个性签名不能超过20个字!");
+        QMessageBox::warning(this,"警告","个性签名不能超过25个字!");
         return;
     }
 

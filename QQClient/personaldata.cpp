@@ -29,8 +29,24 @@ PersonalData::PersonalData(bool isMe,int acc,QStringList UserData,QWidget *paren
     //设置窗口信息
     setWindowIcon(QIcon(":/lib/QQ.png"));
     setWindowTitle(m_UserData.at(Dnickname) + "的资料");
-    //初始化窗口边框阴影
-    initShadow();
+
+    //设置背景透明
+    setAttribute(Qt::WA_TranslucentBackground);
+
+    //设置阴影边框
+    QGraphicsDropShadowEffect * shadow = new QGraphicsDropShadowEffect(ui->frame);
+    shadow->setOffset(0,0);
+    shadow->setColor(Qt::black);
+    shadow->setBlurRadius(10);
+    ui->frame->setGraphicsEffect(shadow);
+
+    //安装事件过滤器，处理绘画事件
+    ui->frame->installEventFilter(this);
+    update();
+
+    /* 目前需要显示的信息并不多,需隐藏滚动条 */
+    ui->scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    ui->scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
     //设置退出该窗口时不退出主程序
     setAttribute(Qt::WA_QuitOnClose,false);
@@ -71,6 +87,17 @@ PersonalData::~PersonalData()
     delete ui;
 }
 
+bool PersonalData::eventFilter(QObject *w, QEvent *e)
+{
+    if((w == ui->frame) && (e->type() == QEvent::Paint))
+    {
+        initShadow();
+        return true;
+    }
+
+    return QWidget::eventFilter(w,e);
+}
+
 void PersonalData::mousePressEvent(QMouseEvent *e)
 {
     if(e->button() == Qt::LeftButton)
@@ -95,21 +122,8 @@ void PersonalData::mouseReleaseEvent(QMouseEvent *event)
 
 void PersonalData::initShadow()
 {
-    //设置背景透明
-    setAttribute(Qt::WA_TranslucentBackground);
-
-    //设置阴影边框
-    QGraphicsDropShadowEffect * shadow = new QGraphicsDropShadowEffect(this);
-    shadow->setOffset(0,0);
-    shadow->setColor(Qt::black);
-    shadow->setBlurRadius(10);
-    this->setGraphicsEffect(shadow);
-}
-
-void PersonalData::paintEvent(QPaintEvent *event)
-{
-    QPainter painter(this);
-    painter.fillRect(this->rect().adjusted(10,10,-10,-10),QColor(220,220,220));
+    QPainter painter(ui->frame);
+    painter.fillRect(ui->frame->rect().adjusted(-10,-10,10,10),QColor(220,220,220));
 }
 
 void PersonalData::CutPhoto(QString path)
@@ -132,15 +146,13 @@ void PersonalData::CutPhoto(QString path)
     }
     else if(pwidth > phigh)
     {
-        qDebug() << "截取横屏图片";
         cimg = img.copy(QRect((pwidth - phigh)/2,0,phigh,phigh));
-        qDebug() << "图片宽高:" << cimg.width() << "," << cimg.height();
+        qDebug() << "截取横屏图片,图片宽高:" << cimg.width() << "," << cimg.height();
     }
     else
     {
-        qDebug() << "截取竖屏图片";
         cimg = img.copy(QRect(0,(phigh - pwidth)/2,pwidth,pwidth));
-        qDebug() << "图片宽高:" << cimg.width() << "," << cimg.height();
+        qDebug() << "截取竖屏图片,图片宽高:" << cimg.width() << "," << cimg.height();
     }
 
     //头像统一设置为350*350
@@ -175,14 +187,19 @@ void PersonalData::on_HeadShotBtn_clicked()
 {
     if(m_isMe)
     {
-        QString hsFile = QFileDialog::getOpenFileName(this,"发送图片","","Picture Files(*.jpg;*.png)");
-        qDebug() << "修改头像; " << hsFile;
+        QString hsFile = QFileDialog::getOpenFileName(this,"更改头像","","Picture Files(*.jpg;*.jpeg;*.png)");
+        if(hsFile == "")
+        {
+            qDebug() << "未选择图像";
+            return;
+        }
+        //qDebug() << "修改头像; " << hsFile;
         CutPhoto(hsFile);
         emit ChangingHeadShot();
         emit ClosePerData(m_acc);
     }
     else
     {
-        qDebug() << "点击好友头像";
+        //qDebug() << "点击好友头像";
     }
 }

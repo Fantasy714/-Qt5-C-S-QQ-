@@ -2,6 +2,8 @@
 #include "ui_findfriends.h"
 #include <QRegExpValidator>
 #include <QDebug>
+#include <QGraphicsDropShadowEffect>
+#include <QPainter>
 
 FindFriends* FindFriends::m_Fri = nullptr;
 QMutex FindFriends::m_mutex;
@@ -13,6 +15,19 @@ FindFriends::FindFriends(QWidget *parent) :
     ui->setupUi(this);
     ui->checkBox->setCheckable(false);
 
+    setWindowTitle("查找好友");
+    //设置背景透明
+    setAttribute(Qt::WA_TranslucentBackground);
+    //设置阴影边框
+    QGraphicsDropShadowEffect * shadow = new QGraphicsDropShadowEffect(ui->frame);
+    shadow->setOffset(0,0);
+    shadow->setColor(Qt::black);
+    shadow->setBlurRadius(10);
+    ui->frame->setGraphicsEffect(shadow);
+
+    ui->frame->installEventFilter(this);
+    update();
+
     //设置消息提示框样式
     MsgBox.setWindowIcon(QIcon(":/lib/QQ.png"));
     MsgBox.setIcon(QMessageBox::Information);
@@ -21,11 +36,6 @@ FindFriends::FindFriends(QWidget *parent) :
                          "QMessageBox QPushButton{background-color:rgb(235,242,250);border-style:solid;border-width:1px;border-color:rgb(0, 170, 255);min-width:70px;min-height:20px;}"
                          "QMessageBox QPushButton:hover{background-color:rgb(0, 170, 255);border-style:solid;border-width:1px;border-color:rgb(116, 186, 220);}"
                          "QPushButton:press{background-color:rgb(235,242,250);border-style:solid;border-width:1px;border-color:rgb(0, 170, 255);}");
-    /*
-    QPixmap pix(":/lib/gantanhao.png");
-    pix = pix.scaled(60,60);
-    MsgBox.setIconPixmap(pix);
-    */
 
     //设置窗口无边框
     setWindowFlags(Qt::FramelessWindowHint);
@@ -59,18 +69,35 @@ FindFriends::~FindFriends()
     delete ui;
 }
 
+void FindFriends::initShadow()
+{
+    QPainter painter(ui->frame);
+    painter.fillRect(ui->frame->rect().adjusted(-10,-10,10,10),QColor(220,220,220));
+}
+
+bool FindFriends::eventFilter(QObject *w, QEvent *e)
+{
+    if((w == ui->frame) && (e->type() == QEvent::Paint))
+    {
+        initShadow();
+        return true;
+    }
+
+    return QWidget::eventFilter(w,e);
+}
+
 void FindFriends::mousePressEvent(QMouseEvent *e)
 {
     if(e->button() == Qt::LeftButton)
     {
-        isMainWidget = true;
+        isPressed = true;
         m_point = e->globalPos() - pos();
     }
 }
 
 void FindFriends::mouseMoveEvent(QMouseEvent *e)
 {
-    if(e->buttons() & Qt::LeftButton && isMainWidget)
+    if(e->buttons() & Qt::LeftButton && isPressed)
     {
         move(e->globalPos() - m_point);
     }
@@ -79,7 +106,7 @@ void FindFriends::mouseMoveEvent(QMouseEvent *e)
 void FindFriends::mouseReleaseEvent(QMouseEvent *event)
 {
     //释放时将bool值恢复false
-    isMainWidget = false;
+    isPressed = false;
     event->accept();
 }
 

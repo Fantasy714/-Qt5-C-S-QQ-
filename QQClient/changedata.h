@@ -24,16 +24,16 @@ signals:
     void ChangeUserDatas(QString); //更改用户资料
 
 protected:
+    bool eventFilter(QObject * w,QEvent * e) override;
     void mousePressEvent(QMouseEvent *e) override;
     void mouseMoveEvent(QMouseEvent *e) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
     void initShadow(); //初始化窗口边框阴影
-    void paintEvent(QPaintEvent *event) override;
 
 private slots:
-    void TextChanged();
+    void TextChanged(); //文本改变
 
-    void on_Save_clicked();
+    void on_Save_clicked(); //保存
 
 private:
     Ui::ChangeData *ui;

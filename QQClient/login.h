@@ -30,6 +30,8 @@ signals:
     void LoginToServer(); //登录
 
 protected:
+    void initShadow(); //初始化窗口边框阴影
+    bool eventFilter(QObject * w,QEvent * e) override;
     void mousePressEvent(QMouseEvent *e) override;
     void mouseMoveEvent(QMouseEvent *e) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
@@ -42,13 +44,13 @@ protected:
 private slots:
     void on_activatedSysTrayIcon(QSystemTrayIcon::ActivationReason reason); //点击托盘图标
 
-    void on_CloseToolBtn_clicked();
+    void on_CloseToolBtn_clicked(); //关闭
 
-    void on_MiniToolBtn_clicked();
+    void on_MiniToolBtn_clicked(); //最小化
 
-    void on_FindBtn_clicked();
+    void on_FindBtn_clicked(); //找回密码
 
-    void on_NewAcBtn_clicked();
+    void on_NewAcBtn_clicked(); //注册新用户
 
     void on_pushButton_clicked(); //登录
 

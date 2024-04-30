@@ -169,6 +169,20 @@
               </property>
              </widget>
             </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="label_2">
+              <property name="styleSheet">
+               <string notr="true">QLabel
+{
+	font-size:20px;
+	color:white;
+}</string>
+              </property>
+              <property name="text">
+               <string>密码:</string>
+              </property>
+             </widget>
+            </item>
             <item row="0" column="2">
              <widget class="QLineEdit" name="lineEdit">
               <property name="styleSheet">
@@ -209,20 +223,6 @@ QLineEdit:focus
               </property>
              </widget>
             </item>
-            <item row="2" column="0">
-             <widget class="QLabel" name="label_2">
-              <property name="styleSheet">
-               <string notr="true">QLabel
-{
-	font-size:20px;
-	color:white;
-}</string>
-              </property>
-              <property name="text">
-               <string>密码:</string>
-              </property>
-             </widget>
-            </item>
             <item row="2" column="2">
              <widget class="QLineEdit" name="lineEdit_2">
               <property name="styleSheet">
@@ -260,6 +260,60 @@ QLineEdit:focus
 	border-bottom-width:1px;
 }
 </string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="2">
+             <widget class="QLineEdit" name="AgainLine">
+              <property name="styleSheet">
+               <string notr="true">QLineEdit
+{
+	color:white;
+	background-color:transparent;
+	border-style:solid;
+	border-color:rgb(200,200,200);
+	border-top-width:0px;
+	border-left-width:0px;
+	border-right-width:0px;
+	border-bottom-width:1px;
+}
+QLineEdit:hover
+{
+	color:white;
+	background-color:transparent;
+	border-style:solid;
+	border-color:rgb(170,170,170);
+	border-top-width:0px;
+	border-left-width:0px;
+	border-right-width:0px;
+	border-bottom-width:1px;
+}
+QLineEdit:focus
+{
+	color:white;
+	background-color:transparent;
+	border-style:solid;
+	border-color:rgb(0, 170, 255);
+	border-top-width:0px;
+	border-left-width:0px;
+	border-right-width:0px;
+	border-bottom-width:1px;
+}
+</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="0">
+             <widget class="QLabel" name="Again">
+              <property name="styleSheet">
+               <string notr="true">QLabel
+{
+	font-size:20px;
+	color:white;
+}</string>
+              </property>
+              <property name="text">
+               <string>重复密码:</string>
               </property>
              </widget>
             </item>

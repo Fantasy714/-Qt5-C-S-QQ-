@@ -17,6 +17,9 @@ QString Global::m_UserPwd = "";
 QString Global::m_UserHeadShot = "";
 QString Global::m_nickName = "";
 QString Global::m_signature = "";
+QString Global::scrollbarStyle = "QScrollBar{width:8px;background:white;margin:0px,0px,0px,0px;padding-top:8px;padding-bottom:8px;}"
+                                 "QScrollBar::handle{width:8px;background:rgb(235,235,235);border-radius:4px;height:20px;}"
+                                 "QScrollBar::handle:hover{width:8px;background:rgb(139,139,139);border-radius:4px;height:20px;}";
 
 void Global::GetWorkPath(QString path)
 {
@@ -139,4 +142,30 @@ QPixmap Global::CreateHeadShot(QString picPath)
     painter.drawPixmap(pix.rect(),src);
 
     return pix;
+}
+
+QString Global::IsFileExist(QString filepath)
+{
+    QFileInfo info;
+    if(!info.exists(filepath)) //不存在直接返回
+    {
+        return filepath;
+    }
+    else
+    {
+        int num = 1;
+        //存在添加后缀
+        QString fileName = filepath.split(".").first(); //文件名
+        QString fileBack = filepath.split(".").last(); //文件后缀名
+        while(true)
+        {
+            QString FileP = fileName + "(" + QString::number(num) + ")" + "." + fileBack;
+            if(!info.exists(FileP))
+            {
+                qDebug() << "接收重复文件,文件名为: " << FileP;
+                return FileP;
+            }
+            num++;
+        }
+    }
 }

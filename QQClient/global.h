@@ -4,7 +4,9 @@
 #include <QString>
 #include <QPixmap>
 
-#define BufferSize 40960
+#define BufferSize 1024
+#define HeadSize 10 //包头大小
+#define NoHeadBufSize 1014 //去掉包头数据包剩余大小
 
 //包头类型
 enum RecvType {
@@ -25,7 +27,8 @@ enum InforType {
     SendMsg,
     AskForData,
     UserChangeData,
-    UpdateHeadShot
+    UpdateHeadShot,
+    SendFileToFri
 };
 
 //保存用户资料编号
@@ -67,6 +70,9 @@ public:
     static QString UserSignature(); //返回用户个签
 
     static QPixmap CreateHeadShot(QString picPath); //返回无锯齿圆形头像
+    static QString IsFileExist(QString filepath); //查看文件是否存在，不存在直接返回，存在则添加后缀
+
+    static QString scrollbarStyle;
 
     static bool isFirstLogin; //是否是第一次登录
     static bool isRemember; //是否记住密码

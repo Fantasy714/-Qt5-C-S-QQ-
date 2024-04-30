@@ -19,24 +19,24 @@ public:
     explicit PersonalData(bool isMe,int acc,QStringList UserData,QWidget *parent = nullptr);
     ~PersonalData();
 signals:
-    void ClosePerData(int);
-    void ChangingData(QStringList);
-    void ChangingHeadShot();
+    void ClosePerData(int); //关闭个人资料界面
+    void ChangingData(QStringList); //更改个人资料
+    void ChangingHeadShot(); //更改头像
 
 protected:
+    bool eventFilter(QObject * w,QEvent * e) override;
     void mousePressEvent(QMouseEvent *e) override;
     void mouseMoveEvent(QMouseEvent *e) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
     void initShadow(); //初始化窗口边框阴影
-    void paintEvent(QPaintEvent *event) override;
     void CutPhoto(QString path); //剪切图片
 
 private slots:
-    void on_CloseBtn_clicked();
+    void on_CloseBtn_clicked(); //关闭
 
-    void on_EditBtn_clicked();
+    void on_EditBtn_clicked(); //编辑
 
-    void on_HeadShotBtn_clicked();
+    void on_HeadShotBtn_clicked(); //点击头像
 
 private:
     Ui::PersonalData *ui;

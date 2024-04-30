@@ -34,9 +34,9 @@ signals:
     void AccountReq(int type,int acc,QString pwd = ""); //发送账号密码信息
 
 private slots:
-    void on_pushButton_2_clicked();
+    void on_pushButton_2_clicked(); //返回
 
-    void on_pushButton_clicked();
+    void on_pushButton_clicked(); //注册/找回
 
 private:
     explicit Account(bool find,QWidget *parent = nullptr); //单例模式（将构造函数私有）

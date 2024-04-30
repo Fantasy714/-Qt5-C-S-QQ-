@@ -14,7 +14,7 @@
 #include "chatwindow.h"
 #include <QPainter>
 #include <QGraphicsDropShadowEffect>
-#include <personaldata.h>
+#include "personaldata.h"
 #include "changedata.h"
 #include "global.h"
 
@@ -60,8 +60,9 @@ protected:
     void on_activatedSysTrayIcon(QSystemTrayIcon::ActivationReason reason); //点击托盘图标
 
     //界面相关
-    void initShadow(); //初始化窗口边框阴影
     void ChangeCurSor(const QPoint &p); //更改鼠标样式
+    void initShadow(); //初始化窗口边框阴影
+    bool eventFilter(QObject * w,QEvent * e) override;
     void paintEvent(QPaintEvent *event) override;
     void mousePressEvent(QMouseEvent *e) override;
     void mouseMoveEvent(QMouseEvent *e) override;
@@ -82,9 +83,9 @@ signals:
     //发送信息给服务器
     void SendMsgToServer(int type,int acc = -1,int targetacc = -1,QString Msg = "",QString MsgType = "");
 private slots:
-    void on_CloseBtn_clicked();
+    void on_CloseBtn_clicked(); //关闭
 
-    void on_MiniBtn_clicked();
+    void on_MiniBtn_clicked(); //最小化
 
     void onTreeWidgetClicked(QTreeWidgetItem * item); //单击好友栏
 
@@ -120,6 +121,9 @@ private:
     bool isPressed = false; //记录是否点下鼠标
     Location m_loc; //记录鼠标当前位置
     int TabWidgetWidth; //记录TabWidget的宽度
+    //全局路径，防止鼠标移动事件穿透
+    QPixmap m_pixmap;
+    QPainterPath m_globalPath;
 
     /* 其他界面 */
     Login * m_log; //登录界面
