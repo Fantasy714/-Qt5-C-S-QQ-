@@ -26,6 +26,7 @@ TcpThread::~TcpThread()
 
     m_serv->close();
     m_serv->deleteLater();
+    qDebug() << "套接字线程退出";
 }
 
 void TcpThread::StartListen()
@@ -257,7 +258,7 @@ void TcpThread::SendFile(QTcpSocket * sock,QString fileName,int infotype,int Rec
     QDataStream out(&dataPackage,QIODevice::WriteOnly);
     //获取文件总大小
     QFile file(fileName);
-    quint32 fileSize = file.size();
+    qint64 fileSize = file.size();
 
     //获取文件名
     QString fName = fileName.split("/").last();
@@ -302,7 +303,7 @@ void TcpThread::SendFile(QTcpSocket * sock,QString fileName,int infotype,int Rec
     }
     else
     {
-        quint32 lastPackSize = fileSize % NoHeadBufSize;
+        qint64 lastPackSize = fileSize % NoHeadBufSize;
         int SendTimes = fileSize / NoHeadBufSize;
         if(lastPackSize == 0)
         {

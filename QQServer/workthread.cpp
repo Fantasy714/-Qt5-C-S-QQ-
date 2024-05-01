@@ -23,6 +23,7 @@ WorkThread::~WorkThread()
         f->remove();
         f->deleteLater();
     }
+    qDebug() << "工作线程退出";
 }
 
 void WorkThread::SplitDataPackAge(QByteArray data,quint16 port)
@@ -50,7 +51,7 @@ void WorkThread::SplitDataPackAge(QByteArray data,quint16 port)
             QDataStream fHead(&filehead,QIODevice::ReadOnly);
             quint32 infotype;
             int RecvAccount;
-            quint32 fSize;
+            qint64 fSize;
             QString fName;
             fHead >> infotype >> RecvAccount >> fSize >> fName;
             qDebug() << "接收类型: " << infotype << "接收方账号: " << RecvAccount
@@ -284,9 +285,9 @@ void WorkThread::ReplyToJson(InforType type,QString Msg,QString MsgType, int acc
         //如果查找成功则添加用户信息及头像
         if(Msg == "查找成功")
         {
-            //将需要的几个用户资料添加到字符串中并用@@隔开
-            QString uData = QString::number(targetacc) + "@@" + m_userDatas.at(ennickname) + "@@" +
-                    m_userDatas.at(ensex) + "@@" + m_userDatas.at(enage) + "@@" + m_userDatas.at(enlocation);
+            //将需要的几个用户资料添加到字符串中并用##隔开
+            QString uData = QString::number(targetacc) + "##" + m_userDatas.at(ennickname) + "##" +
+                    m_userDatas.at(ensex) + "##" + m_userDatas.at(enage) + "##" + m_userDatas.at(enlocation);
 
             obj.insert("userData",uData);
         }
@@ -303,9 +304,9 @@ void WorkThread::ReplyToJson(InforType type,QString Msg,QString MsgType, int acc
         {
             if(MsgType == "发送好友申请")
             {
-                //将需要的几个用户资料添加到字符串中并用@@隔开
-                QString uData = QString::number(acc) + "@@" + m_userDatas.at(ennickname) + "@@" +
-                        m_userDatas.at(ensex) + "@@" + m_userDatas.at(enage) + "@@" + m_userDatas.at(enlocation);
+                //将需要的几个用户资料添加到字符串中并用##隔开
+                QString uData = QString::number(acc) + "##" + m_userDatas.at(ennickname) + "##" +
+                        m_userDatas.at(ensex) + "##" + m_userDatas.at(enage) + "##" + m_userDatas.at(enlocation);
 
                 obj.insert("userData",uData);
                 obj.insert("msgtype",MsgType);
@@ -328,7 +329,7 @@ void WorkThread::ReplyToJson(InforType type,QString Msg,QString MsgType, int acc
         {
             qDebug() << acc << "添加" << targetacc << "成功!";
             QStringList userDatas = sql.UserMessages(acc);
-            QString uD = userDatas.at(ennickname) + "@@" + userDatas.at(ensignature);
+            QString uD = userDatas.at(ennickname) + "##" + userDatas.at(ensignature);
             obj.insert("userData",uD);
         }
         break;
@@ -347,7 +348,7 @@ void WorkThread::ReplyToJson(InforType type,QString Msg,QString MsgType, int acc
             obj.insert("userdatas",Msg);
 
             //将拼接的查找类型和是否更新头像结果拆分
-            QStringList res = MsgType.split("@@");
+            QStringList res = MsgType.split("##");
             QString isSelf = res.at(0);
             QString result = res.at(1);
 
@@ -562,7 +563,7 @@ void WorkThread::AskForUserData(int acc, QString isSelf, int HeadShotSize)
     for(auto uD : m_userDatas)
     {
         datas.append(uD);
-        datas.append("@@");
+        datas.append("##");
     }
     qDebug() << "返回个人资料: " << datas;
 
@@ -579,16 +580,16 @@ void WorkThread::AskForUserData(int acc, QString isSelf, int HeadShotSize)
         if(fHs != HeadShotSize) //头像大小不同即为好友已更改头像
         {
             qDebug() << "需更新好友头像";
-            ReplyToJson(AskForData,datas,isSelf + "@@" + "需更新头像",acc,-1,hsPath);
+            ReplyToJson(AskForData,datas,isSelf + "##" + "需更新头像",acc,-1,hsPath);
             return;
         }
-        ReplyToJson(AskForData,datas,isSelf + "@@" + "不更新头像",acc,-1);
+        ReplyToJson(AskForData,datas,isSelf + "##" + "不更新头像",acc,-1);
     }
 }
 
 void WorkThread::ChangingUserDatas(int acc, QString datas)
 {
-    QStringList UserDatas = datas.split("@@");
+    QStringList UserDatas = datas.split("##");
 
     bool changed = sql.ChangeUserMessages(acc,UserDatas);
     if(!changed)
@@ -597,7 +598,7 @@ void WorkThread::ChangingUserDatas(int acc, QString datas)
     }
 }
 
-QString WorkThread::GetFileSize(const int &size)
+QString WorkThread::GetFileSize(const qint64 &size)
 {
     int integer = 0; //整数
     int decimal = 0; //小数

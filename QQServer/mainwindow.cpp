@@ -43,17 +43,17 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
-    m_WorkTd->quit();
-    m_WorkTd->wait();
-    m_WorkTd->deleteLater();
-    m_WorkTask->~WorkThread();
-    m_WorkTask->deleteLater();
-
     m_TcpTd->quit();
     m_TcpTd->wait();
     m_TcpTd->deleteLater();
     m_TcpTask->~TcpThread();
     m_TcpTask->deleteLater();
+
+    m_WorkTd->quit();
+    m_WorkTd->wait();
+    m_WorkTd->deleteLater();
+    m_WorkTask->~WorkThread();
+    m_WorkTask->deleteLater();
 
     delete ui;
 }

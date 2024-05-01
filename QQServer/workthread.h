@@ -34,7 +34,7 @@ protected:
 
     //需转发信息给其他客户端
 
-    QString GetFileSize(const int &size); //获取文件大小字符串
+    QString GetFileSize(const qint64 &size); //获取文件大小字符串
     void CltAddFri(int acc,int targetacc,QString msgType,QString yanzheng); //处理好友申请信息
 signals:
     void ThreadbackMsg(int type,int account,QString msg); //传消息回服务器
@@ -48,7 +48,7 @@ private:
     /* 文件操作 */
     QHash<quint16,int> FilePackAgeCount; //已接收数据包个数
     QHash<quint16,QFile*> m_RecvFiles; //操作文件,key为文件发送方端口号
-    QHash<quint16,quint32> m_FileSizes; //保存文件大小
+    QHash<quint16,qint64> m_FileSizes; //保存文件大小
 };
 
 #endif // WORKTHREAD_H
