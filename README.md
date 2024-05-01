@@ -1,5 +1,3 @@
-![18](https://github.com/Fantasy714/MyQQ/assets/128826119/79c20c84-6e13-4601-90cd-dee3c69d844a)# QtC/S架构多线程仿QQ聊天软件
-
 使用Qt5开发的一个仿QQ聊天软件
 
 ### 开发环境
@@ -21,15 +19,10 @@ Windows + Qt 5.14.2 MinGW 64-bit
 - 发送消息，发送普通图片和Gif图片，发送大文件(实测能发送3G视频)
 
 ### 备注:
-
-因Qt无Mysql驱动，使用的ODBC连接Mysql数据库，可参考此链接https://blog.csdn.net/joey_ro/article/details/105411135或有Mysql驱动则直接更改此处连接
-
-<img src="file:///C:\Users\Fantasy\Documents\Tencent Files\2183142763\Image\C2C\AL35S0~}UTBZUYTW{D`[39D.png" alt="img"  />
-
+因Qt无Mysql驱动，使用的ODBC连接Mysql数据库，可参考此链接[https://blog.csdn.net/joey_ro/article/details/105411135](https://blog.csdn.net/joey_ro/article/details/105411135)或有Mysql驱动则直接更改此处连接
+![AL35S0~}UTBZUYTW{D` 39D](https://github.com/Fantasy714/MyQQ/assets/128826119/061f5997-9b8a-420e-8a4f-1794169f3456)
 的数据库为Mysql即可
-
 ### 项目介绍
-
 ##### 1.登录界面
 ![1](https://github.com/Fantasy714/MyQQ/assets/128826119/efb27f78-8990-4dff-998b-882c5fdaa40b)
 ##### 2.注册账号及找回密码界面
