@@ -12,7 +12,8 @@
 或者直接发送文件尾，判断如果接收文件大小不等于客户端发送来的文件总大小也可
 */
 //包头类型
-enum RecvType {
+enum RecvType
+{
     JsonDataHead = 50,
     FileInfoHead,
     FileDataHead,
@@ -20,7 +21,8 @@ enum RecvType {
 };
 
 //Json数据中信息类型
-enum InforType {
+enum InforType
+{
     Registration = 1125,
     FindPwd,
     LoginAcc,
@@ -35,7 +37,8 @@ enum InforType {
 };
 
 //保存用户资料编号
-enum UserMsg {
+enum UserMsg
+{
     ennickname = 0,
     ensignature,
     ensex,
@@ -43,7 +46,7 @@ enum UserMsg {
     enbirthday,
     enlocation,
     enblood_type,
-    enwork,ensch_comp
+    enwork, ensch_comp
 };
 
 class Global

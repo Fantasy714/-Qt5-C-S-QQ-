@@ -7,8 +7,9 @@
 #include <QPainter>
 #include "global.h"
 
-namespace Ui {
-class PersonalData;
+namespace Ui
+{
+    class PersonalData;
 }
 
 class PersonalData : public QWidget
@@ -16,7 +17,7 @@ class PersonalData : public QWidget
     Q_OBJECT
 
 public:
-    explicit PersonalData(bool isMe,int acc,QStringList UserData,QWidget *parent = nullptr);
+    explicit PersonalData(bool isMe, int acc, QStringList UserData, QWidget* parent = nullptr);
     ~PersonalData();
 signals:
     void ClosePerData(int); //关闭个人资料界面
@@ -24,10 +25,10 @@ signals:
     void ChangingHeadShot(); //更改头像
 
 protected:
-    bool eventFilter(QObject * w,QEvent * e) override;
-    void mousePressEvent(QMouseEvent *e) override;
-    void mouseMoveEvent(QMouseEvent *e) override;
-    void mouseReleaseEvent(QMouseEvent *event) override;
+    bool eventFilter(QObject* w, QEvent* e) override;
+    void mousePressEvent(QMouseEvent* e) override;
+    void mouseMoveEvent(QMouseEvent* e) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
     void initShadow(); //初始化窗口边框阴影
     void CutPhoto(QString path); //剪切图片
 
@@ -39,7 +40,7 @@ private slots:
     void on_HeadShotBtn_clicked(); //点击头像
 
 private:
-    Ui::PersonalData *ui;
+    Ui::PersonalData* ui;
 
     QPoint m_point; //记录点击位置
     bool isPressed; //是否点下

@@ -7,8 +7,9 @@
 #include <QCloseEvent>
 #include <QMessageBox>
 
-namespace Ui {
-class FindFriends;
+namespace Ui
+{
+    class FindFriends;
 }
 
 class FindFriends : public QWidget
@@ -18,15 +19,15 @@ class FindFriends : public QWidget
 public:
     static FindFriends* createFindFriends(); //单例模式
     ~FindFriends();
-    FindFriends(FindFriends &) = delete; //单例模式(删除拷贝构造和赋值构造)
+    FindFriends(FindFriends&) = delete; //单例模式(删除拷贝构造和赋值构造)
     FindFriends& operator=(const FindFriends&) = delete;
 protected:
     void initShadow(); //初始化窗口边框阴影
-    bool eventFilter(QObject * w,QEvent * e) override;
-    void mousePressEvent(QMouseEvent *e) override;
-    void mouseMoveEvent(QMouseEvent *e) override;
-    void mouseReleaseEvent(QMouseEvent *event) override;
-    void closeEvent(QCloseEvent *event) override;
+    bool eventFilter(QObject* w, QEvent* e) override;
+    void mousePressEvent(QMouseEvent* e) override;
+    void mouseMoveEvent(QMouseEvent* e) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
+    void closeEvent(QCloseEvent* event) override;
 
 public slots:
     void GetReply(bool type); //返回搜索结果
@@ -40,9 +41,9 @@ private slots:
     void on_pushButton_clicked(); //搜索账号
 
 private:
-    Ui::FindFriends *ui;
-    explicit FindFriends(QWidget *parent = nullptr); //单例模式
-    static FindFriends * m_Fri; //单例模式
+    Ui::FindFriends* ui;
+    explicit FindFriends(QWidget* parent = nullptr); //单例模式
+    static FindFriends* m_Fri; //单例模式
     static QMutex m_mutex; //锁
     bool isPressed = false; //记录是否点下
     QPoint m_point; //记录鼠标点下位置

@@ -9,7 +9,10 @@
 #include "global.h"
 
 QT_BEGIN_NAMESPACE
-namespace Ui { class Login; }
+namespace Ui
+{
+    class Login;
+}
 QT_END_NAMESPACE
 
 class Login : public QWidget
@@ -17,7 +20,7 @@ class Login : public QWidget
     Q_OBJECT
 
 public:
-    Login(QWidget *parent = nullptr);
+    Login(QWidget* parent = nullptr);
     ~Login();
 public slots:
     void ShowWindow(bool fromAcc = false); //显示主界面
@@ -31,10 +34,10 @@ signals:
 
 protected:
     void initShadow(); //初始化窗口边框阴影
-    bool eventFilter(QObject * w,QEvent * e) override;
-    void mousePressEvent(QMouseEvent *e) override;
-    void mouseMoveEvent(QMouseEvent *e) override;
-    void mouseReleaseEvent(QMouseEvent *event) override;
+    bool eventFilter(QObject* w, QEvent* e) override;
+    void mousePressEvent(QMouseEvent* e) override;
+    void mouseMoveEvent(QMouseEvent* e) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
     void InitSysTrayicon(); //初始化系统托盘
 
     void initUserData(); //初始化用户数据
@@ -58,17 +61,17 @@ private slots:
 
     void on_pushButton_2_clicked(); //从忘记密码提示框返回
 
-    void on_AccountLine_textChanged(const QString &arg1); //账号栏文本改变
+    void on_AccountLine_textChanged(const QString& arg1); //账号栏文本改变
 
 private:
-    Ui::Login *ui;
+    Ui::Login* ui;
     bool isMainWidget = false; //记录点下时是否在主窗口上而非内部控件上
     QPoint m_point; //记录点击时位置
-    QMovie * m_movie; //加载动态图
+    QMovie* m_movie; //加载动态图
     bool Registering = false; //是否正在注册界面
 
     /* 托盘菜单 */
-    QSystemTrayIcon * m_sysIcon; //托盘功能
+    QSystemTrayIcon* m_sysIcon; //托盘功能
     QAction* m_quit; //退出
     QAction* m_show; //恢复
     QMenu* m_menu; //托盘菜单

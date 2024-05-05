@@ -9,7 +9,8 @@
 #define NoHeadBufSize 1014 //去掉包头数据包剩余大小
 
 //包头类型
-enum RecvType {
+enum RecvType
+{
     JsonDataHead = 50,
     FileInfoHead,
     FileDataHead,
@@ -17,7 +18,8 @@ enum RecvType {
 };
 
 //Json数据中信息类型
-enum InforType {
+enum InforType
+{
     Registration = 1125,
     FindPwd,
     LoginAcc,
@@ -32,7 +34,8 @@ enum InforType {
 };
 
 //保存用户资料编号
-enum UserMsg {
+enum UserMsg
+{
     Dnickname = 0,
     Dsignature,
     Dsex,
@@ -54,8 +57,8 @@ public:
     static bool CreateWorkPath(); //创建工作目录用户数据文件夹
 
     //设置用户信息
-    static void InitLoginUserInfo(int account,QString pwd); //设置用户数据
-    static void InitUserNameAndSig(QString name,QString sig); //设置用户名和个签
+    static void InitLoginUserInfo(int account, QString pwd); //设置用户数据
+    static void InitUserNameAndSig(QString name, QString sig); //设置用户名和个签
 
     /* 登录用户数据文件夹 */
     static QString UserPath(); //返回登录用户文件夹位置

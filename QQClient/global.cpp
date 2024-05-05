@@ -40,9 +40,11 @@ QString Global::AppAllUserPath()
 bool Global::CreateWorkPath()
 {
     QDir dir;
+
     if(!dir.exists(WorkPath))
     {
         qDebug() << "未创建用户数据文件夹";
+
         if(!dir.mkdir(WorkPath))
         {
             qDebug() << "创建用户数据文件夹失败";
@@ -53,6 +55,7 @@ bool Global::CreateWorkPath()
     if(!dir.exists(AllUserPath))
     {
         qDebug() << "allusers数据文件夹未创建";
+
         if(!dir.mkdir(AllUserPath))
         {
             qDebug() << "allusers数据文件夹创建失败!";
@@ -122,7 +125,7 @@ QString Global::UserSignature()
 QPixmap Global::CreateHeadShot(QString picPath)
 {
     QPixmap src(picPath);
-    QPixmap pix(src.width(),src.height());
+    QPixmap pix(src.width(), src.height());
 
     //设置图片透明
     pix.fill(Qt::transparent);
@@ -133,13 +136,13 @@ QPixmap Global::CreateHeadShot(QString picPath)
 
     QPainterPath path;
     //设置圆形半径，取图片较小边长作为裁切半径
-    int radius = src.width() > src.height() ? src.height()/2 : src.width()/2;
+    int radius = src.width() > src.height() ? src.height() / 2 : src.width() / 2;
     //绘制裁切区域的大小
-    path.addEllipse(src.rect().center(),radius,radius);
+    path.addEllipse(src.rect().center(), radius, radius);
     //设置裁切区域
     painter.setClipPath(path);
     //把源图片的内容绘制到创建的pixmap上，非裁切区域内容不显示
-    painter.drawPixmap(pix.rect(),src);
+    painter.drawPixmap(pix.rect(), src);
 
     return pix;
 }
@@ -147,6 +150,7 @@ QPixmap Global::CreateHeadShot(QString picPath)
 QString Global::IsFileExist(QString filepath)
 {
     QFileInfo info;
+
     if(!info.exists(filepath)) //不存在直接返回
     {
         return filepath;
@@ -157,14 +161,17 @@ QString Global::IsFileExist(QString filepath)
         //存在添加后缀
         QString fileName = filepath.split(".").first(); //文件名
         QString fileBack = filepath.split(".").last(); //文件后缀名
+
         while(true)
         {
             QString FileP = fileName + "(" + QString::number(num) + ")" + "." + fileBack;
+
             if(!info.exists(FileP))
             {
                 qDebug() << "接收重复文件,文件名为: " << FileP;
                 return FileP;
             }
+
             num++;
         }
     }

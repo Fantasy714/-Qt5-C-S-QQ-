@@ -12,14 +12,14 @@ class TcpThread : public QObject
 {
     Q_OBJECT
 public:
-    explicit TcpThread(QObject *parent = nullptr);
+    explicit TcpThread(QObject* parent = nullptr);
 
     //发送接收信息
-    void SendToServer(QByteArray jsondata, QString fileName,InforType type,int fileNums,int RecvAccount); //发送数据给服务器
+    void SendToServer(QByteArray jsondata, QString fileName, InforType type, int fileNums, int RecvAccount); //发送数据给服务器
     void ReadMsgFromServer(); //接收服务器传来的数据
 
     //解析和转换信息
-    void MsgToJson(int type,int acc = -1,int targetacc = -1,QString Msg = "",QString MsgType = ""); //将数据转换为Json数据
+    void MsgToJson(int type, int acc = -1, int targetacc = -1, QString Msg = "", QString MsgType = ""); //将数据转换为Json数据
     void ParseMsg(QByteArray); //解析传回的数据
 
     bool isCloseing = false; //是否准备退出
@@ -29,19 +29,19 @@ public slots:
     void GetClose(); //接收关闭信号
 
     //收到注册界面信息
-    void recvAccMsg(int type,int acc,QString pwd); //获取注册界面返回的信息
+    void recvAccMsg(int type, int acc, QString pwd); //获取注册界面返回的信息
     //收到登录信号
     void LoginToServer();
 signals:
-     //发送结果回注册界面和登录界面
-    void sendResultToAccMsg(int type,QString pwd,QString result);
+    //发送结果回注册界面和登录界面
+    void sendResultToAccMsg(int type, QString pwd, QString result);
     void sendResultToLogin(QString result);
     //连接成功时发出true,服务器断开连接发送false
     void isConnectingWithServer(bool onl);
     //发送结果回主界面
-    void sendResultToMainInterFace(int type,int targetAcc,QString uData = "",QString Msg = "",QString MsgType = "");
+    void sendResultToMainInterFace(int type, int targetAcc, QString uData = "", QString Msg = "", QString MsgType = "");
     //发送文件收发进度信息
-    void SendProgressInfo(int friAcc,QString fileName,qint64 speed,int value,QTime RestTime,bool isMe);
+    void SendProgressInfo(int friAcc, QString fileName, qint64 speed, int value, QTime RestTime, bool isMe);
 protected:
     //连接服务器及自动重连操作
     void connectToServer(); //连接服务器
@@ -51,15 +51,15 @@ protected:
 
     //网络传输相关
     void SplitDataPackAge(QByteArray); //拆分数据包
-    void SendFile(QString fileName,quint32 type,int RecvAccount); //发送文件
+    void SendFile(QString fileName, quint32 type, int RecvAccount); //发送文件
     void SendJson(QByteArray jsonData); //发送Json数据
 private:
-    QTcpSocket * m_tcp = nullptr; //tcp套接字
+    QTcpSocket* m_tcp = nullptr; //tcp套接字
     quint32 port = 9000; //端口号
     QString address = "127.0.0.1"; //ip地址
 
     /* 自动重连 */
-    QTimer * m_timer = nullptr; //定时器
+    QTimer* m_timer = nullptr; //定时器
 
     /* 接收 */
     QByteArray m_buffer; //保存数据

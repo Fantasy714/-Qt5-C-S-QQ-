@@ -8,7 +8,7 @@
 FindFriends* FindFriends::m_Fri = nullptr;
 QMutex FindFriends::m_mutex;
 
-FindFriends::FindFriends(QWidget *parent) :
+FindFriends::FindFriends(QWidget* parent) :
     QWidget(parent),
     ui(new Ui::FindFriends)
 {
@@ -19,8 +19,8 @@ FindFriends::FindFriends(QWidget *parent) :
     //设置背景透明
     setAttribute(Qt::WA_TranslucentBackground);
     //设置阴影边框
-    QGraphicsDropShadowEffect * shadow = new QGraphicsDropShadowEffect(ui->frame);
-    shadow->setOffset(0,0);
+    QGraphicsDropShadowEffect* shadow = new QGraphicsDropShadowEffect(ui->frame);
+    shadow->setOffset(0, 0);
     shadow->setColor(Qt::black);
     shadow->setBlurRadius(10);
     ui->frame->setGraphicsEffect(shadow);
@@ -46,21 +46,24 @@ FindFriends::FindFriends(QWidget *parent) :
     //查找文本栏只能输入数字
     ui->lineEdit->setValidator(new QRegExpValidator(QRegExp("[0-9]+$")));
 
-    connect(ui->MiniBtn,&QToolButton::clicked,this,&FindFriends::showMinimized);
-    connect(ui->CloseBtn,&QToolButton::clicked,this,&FindFriends::hide);
+    connect(ui->MiniBtn, &QToolButton::clicked, this, &FindFriends::showMinimized);
+    connect(ui->CloseBtn, &QToolButton::clicked, this, &FindFriends::hide);
 }
 
-FindFriends *FindFriends::createFindFriends()
+FindFriends* FindFriends::createFindFriends()
 {
     if(m_Fri == nullptr)
     {
         m_mutex.lock();
+
         if(m_Fri == nullptr)
         {
             m_Fri = new FindFriends;
         }
+
         m_mutex.unlock();
     }
+
     return m_Fri;
 }
 
@@ -72,10 +75,10 @@ FindFriends::~FindFriends()
 void FindFriends::initShadow()
 {
     QPainter painter(ui->frame);
-    painter.fillRect(ui->frame->rect().adjusted(-10,-10,10,10),QColor(220,220,220));
+    painter.fillRect(ui->frame->rect().adjusted(-10, -10, 10, 10), QColor(220, 220, 220));
 }
 
-bool FindFriends::eventFilter(QObject *w, QEvent *e)
+bool FindFriends::eventFilter(QObject* w, QEvent* e)
 {
     if((w == ui->frame) && (e->type() == QEvent::Paint))
     {
@@ -83,10 +86,10 @@ bool FindFriends::eventFilter(QObject *w, QEvent *e)
         return true;
     }
 
-    return QWidget::eventFilter(w,e);
+    return QWidget::eventFilter(w, e);
 }
 
-void FindFriends::mousePressEvent(QMouseEvent *e)
+void FindFriends::mousePressEvent(QMouseEvent* e)
 {
     if(e->button() == Qt::LeftButton)
     {
@@ -95,7 +98,7 @@ void FindFriends::mousePressEvent(QMouseEvent *e)
     }
 }
 
-void FindFriends::mouseMoveEvent(QMouseEvent *e)
+void FindFriends::mouseMoveEvent(QMouseEvent* e)
 {
     if(e->buttons() & Qt::LeftButton && isPressed)
     {
@@ -103,14 +106,14 @@ void FindFriends::mouseMoveEvent(QMouseEvent *e)
     }
 }
 
-void FindFriends::mouseReleaseEvent(QMouseEvent *event)
+void FindFriends::mouseReleaseEvent(QMouseEvent* event)
 {
     //释放时将bool值恢复false
     isPressed = false;
     event->accept();
 }
 
-void FindFriends::closeEvent(QCloseEvent *event)
+void FindFriends::closeEvent(QCloseEvent* event)
 {
     //关闭事件改为隐藏此窗口
     hide();
@@ -143,12 +146,14 @@ void FindFriends::on_pushButton_clicked()
 {
     //查看是否输入账号
     QString text = ui->lineEdit->text();
+
     if(text == "")
     {
         MsgBox.setText("未输入账号,请输入账号后再搜索");
         MsgBox.exec();
         return;
     }
+
     emit SearchingAcc(text);
     ui->lineEdit->clear();
 }

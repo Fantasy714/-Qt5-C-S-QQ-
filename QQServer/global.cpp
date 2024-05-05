@@ -12,15 +12,18 @@ void Global::GetWorkPath(QString path)
 bool Global::CreateWorkPath()
 {
     QDir dir;
+
     if(!dir.exists(WorkPath))
     {
         qDebug() << "未创建用户数据文件夹";
+
         if(!dir.mkdir(WorkPath))
         {
             qDebug() << "创建用户数据文件夹失败";
             return false;
         }
     }
+
     return true;
 }
 

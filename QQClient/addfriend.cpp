@@ -5,7 +5,7 @@
 #include <QDebug>
 #include <QGraphicsDropShadowEffect>
 
-AddFriend::AddFriend(bool type,QStringList gn, QStringList umsg, QString yanzheng, QWidget *parent) :
+AddFriend::AddFriend(bool type, QStringList gn, QStringList umsg, QString yanzheng, QWidget* parent) :
     QWidget(parent),
     ui(new Ui::AddFriend)
 {
@@ -16,8 +16,8 @@ AddFriend::AddFriend(bool type,QStringList gn, QStringList umsg, QString yanzhen
     //设置背景透明
     setAttribute(Qt::WA_TranslucentBackground);
     //设置阴影边框
-    QGraphicsDropShadowEffect * shadow = new QGraphicsDropShadowEffect(ui->frame);
-    shadow->setOffset(0,0);
+    QGraphicsDropShadowEffect* shadow = new QGraphicsDropShadowEffect(ui->frame);
+    shadow->setOffset(0, 0);
     shadow->setColor(Qt::black);
     shadow->setBlurRadius(10);
     ui->frame->setGraphicsEffect(shadow);
@@ -33,6 +33,7 @@ AddFriend::AddFriend(bool type,QStringList gn, QStringList umsg, QString yanzhen
         {
             ui->Yanzheng->setPlainText(yanzheng);
         }
+
         //更改按钮文字及提示信息
         ui->YanzhengLab->setText("验证信息");
         ui->Yanzheng->setReadOnly(true);
@@ -65,13 +66,14 @@ AddFriend::AddFriend(bool type,QStringList gn, QStringList umsg, QString yanzhen
     //设置窗口无边框
     setWindowFlags(Qt::FramelessWindowHint);
     //设置退出该窗口时不退出主程序
-    setAttribute(Qt::WA_QuitOnClose,false);
+    setAttribute(Qt::WA_QuitOnClose, false);
 
     //最小化
-    connect(ui->MiniBtn,&QToolButton::clicked,this,&AddFriend::showMinimized);
+    connect(ui->MiniBtn, &QToolButton::clicked, this, &AddFriend::showMinimized);
     //若为收到好友申请则关闭等同忽略该好友申请
-    connect(ui->CloseBtn,&QToolButton::clicked,this,[=](){
-            emit CloseAddFriend();
+    connect(ui->CloseBtn, &QToolButton::clicked, this, [ = ]()
+    {
+        emit CloseAddFriend();
     });
 }
 
@@ -83,20 +85,21 @@ AddFriend::~AddFriend()
 void AddFriend::initShadow()
 {
     QPainter painter(ui->frame);
-    painter.fillRect(ui->frame->rect().adjusted(-10,-10,10,10),QColor(220,220,220));
+    painter.fillRect(ui->frame->rect().adjusted(-10, -10, 10, 10), QColor(220, 220, 220));
 }
 
-bool AddFriend::eventFilter(QObject *w, QEvent *e)
+bool AddFriend::eventFilter(QObject* w, QEvent* e)
 {
-    if((w == ui->frame) && (e->type() == QEvent::Paint)){
+    if((w == ui->frame) && (e->type() == QEvent::Paint))
+    {
         initShadow();
         return true;
     }
 
-    return QWidget::eventFilter(w,e);
+    return QWidget::eventFilter(w, e);
 }
 
-void AddFriend::mousePressEvent(QMouseEvent *e)
+void AddFriend::mousePressEvent(QMouseEvent* e)
 {
     if(e->button() == Qt::LeftButton)
     {
@@ -105,7 +108,7 @@ void AddFriend::mousePressEvent(QMouseEvent *e)
     }
 }
 
-void AddFriend::mouseMoveEvent(QMouseEvent *e)
+void AddFriend::mouseMoveEvent(QMouseEvent* e)
 {
     if(e->buttons() & Qt::LeftButton && isPressed)
     {
@@ -113,8 +116,9 @@ void AddFriend::mouseMoveEvent(QMouseEvent *e)
     }
 }
 
-void AddFriend::mouseReleaseEvent(QMouseEvent *event)
+void AddFriend::mouseReleaseEvent(QMouseEvent* event)
 {
+    Q_UNUSED(event);
     //释放时将bool值恢复false
     isPressed = false;
 }
@@ -128,11 +132,11 @@ void AddFriend::on_OkBtn_clicked()
 {
     if(ui->OkBtn->text() == "完成")
     {
-        QMessageBox::information(this,"提示","您的好友添加请求已发送，请等待对方确认");
-        emit CloseAddFriend("完成",m_acc,ui->FriCombo->currentText(),ui->Yanzheng->toPlainText());
+        QMessageBox::information(this, "提示", "您的好友添加请求已发送，请等待对方确认");
+        emit CloseAddFriend("完成", m_acc, ui->FriCombo->currentText(), ui->Yanzheng->toPlainText());
     }
     else
     {
-        emit CloseAddFriend("同意",m_acc,ui->FriCombo->currentText());
+        emit CloseAddFriend("同意", m_acc, ui->FriCombo->currentText());
     }
 }

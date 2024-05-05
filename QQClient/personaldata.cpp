@@ -4,7 +4,7 @@
 #include <QFileDialog>
 #include <QDebug>
 
-PersonalData::PersonalData(bool isMe,int acc,QStringList UserData,QWidget *parent) :
+PersonalData::PersonalData(bool isMe, int acc, QStringList UserData, QWidget* parent) :
     QWidget(parent),
     ui(new Ui::PersonalData)
 {
@@ -12,6 +12,7 @@ PersonalData::PersonalData(bool isMe,int acc,QStringList UserData,QWidget *paren
     isPressed = false;
     //设置窗口无边框
     setWindowFlags(Qt::FramelessWindowHint);
+
     //若不是自己则不显示编辑按钮且不能点击头像
     if(!isMe)
     {
@@ -34,8 +35,8 @@ PersonalData::PersonalData(bool isMe,int acc,QStringList UserData,QWidget *paren
     setAttribute(Qt::WA_TranslucentBackground);
 
     //设置阴影边框
-    QGraphicsDropShadowEffect * shadow = new QGraphicsDropShadowEffect(ui->frame);
-    shadow->setOffset(0,0);
+    QGraphicsDropShadowEffect* shadow = new QGraphicsDropShadowEffect(ui->frame);
+    shadow->setOffset(0, 0);
     shadow->setColor(Qt::black);
     shadow->setBlurRadius(10);
     ui->frame->setGraphicsEffect(shadow);
@@ -49,10 +50,11 @@ PersonalData::PersonalData(bool isMe,int acc,QStringList UserData,QWidget *paren
     ui->scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
     //设置退出该窗口时不退出主程序
-    setAttribute(Qt::WA_QuitOnClose,false);
+    setAttribute(Qt::WA_QuitOnClose, false);
 
     //设置头像
     QPixmap pix;
+
     if(isMe)
     {
         pix = Global::CreateHeadShot(Global::UserHeadShot());
@@ -61,8 +63,9 @@ PersonalData::PersonalData(bool isMe,int acc,QStringList UserData,QWidget *paren
     {
         pix = Global::CreateHeadShot(Global::AppAllUserPath() + "/" + QString::number(acc) + ".jpg");
     }
+
     ui->HeadShotBtn->setIcon(QIcon(pix));
-    ui->HeadShotBtn->setIconSize(QSize(65,65));
+    ui->HeadShotBtn->setIconSize(QSize(65, 65));
 
     //设置昵称签名
     ui->nameLab->setText(m_UserData.at(Dnickname));
@@ -79,7 +82,7 @@ PersonalData::PersonalData(bool isMe,int acc,QStringList UserData,QWidget *paren
     ui->work->setText(m_UserData.at(Dwork));
     ui->school->setText(m_UserData.at(Dsch_comp));
 
-    connect(ui->MiniBtn,&QToolButton::clicked,this,&PersonalData::showMinimized);
+    connect(ui->MiniBtn, &QToolButton::clicked, this, &PersonalData::showMinimized);
 }
 
 PersonalData::~PersonalData()
@@ -87,7 +90,7 @@ PersonalData::~PersonalData()
     delete ui;
 }
 
-bool PersonalData::eventFilter(QObject *w, QEvent *e)
+bool PersonalData::eventFilter(QObject* w, QEvent* e)
 {
     if((w == ui->frame) && (e->type() == QEvent::Paint))
     {
@@ -95,10 +98,10 @@ bool PersonalData::eventFilter(QObject *w, QEvent *e)
         return true;
     }
 
-    return QWidget::eventFilter(w,e);
+    return QWidget::eventFilter(w, e);
 }
 
-void PersonalData::mousePressEvent(QMouseEvent *e)
+void PersonalData::mousePressEvent(QMouseEvent* e)
 {
     if(e->button() == Qt::LeftButton)
     {
@@ -107,7 +110,7 @@ void PersonalData::mousePressEvent(QMouseEvent *e)
     }
 }
 
-void PersonalData::mouseMoveEvent(QMouseEvent *e)
+void PersonalData::mouseMoveEvent(QMouseEvent* e)
 {
     if(e->buttons() & Qt::LeftButton && isPressed)
     {
@@ -115,20 +118,22 @@ void PersonalData::mouseMoveEvent(QMouseEvent *e)
     }
 }
 
-void PersonalData::mouseReleaseEvent(QMouseEvent *event)
+void PersonalData::mouseReleaseEvent(QMouseEvent* event)
 {
+    Q_UNUSED(event);
     isPressed = false;
 }
 
 void PersonalData::initShadow()
 {
     QPainter painter(ui->frame);
-    painter.fillRect(ui->frame->rect().adjusted(-10,-10,10,10),QColor(220,220,220));
+    painter.fillRect(ui->frame->rect().adjusted(-10, -10, 10, 10), QColor(220, 220, 220));
 }
 
 void PersonalData::CutPhoto(QString path)
 {
     QImage img;
+
     if(!img.load(path))
     {
         qDebug() << "图片加载失败: " << path;
@@ -139,6 +144,7 @@ void PersonalData::CutPhoto(QString path)
     int phigh = img.height();
     qDebug() << "图片高为:" << pwidth << "宽" << phigh;
     QImage cimg;
+
     if(pwidth == phigh)
     {
         cimg = img.copy();
@@ -146,17 +152,17 @@ void PersonalData::CutPhoto(QString path)
     }
     else if(pwidth > phigh)
     {
-        cimg = img.copy(QRect((pwidth - phigh)/2,0,phigh,phigh));
+        cimg = img.copy(QRect((pwidth - phigh) / 2, 0, phigh, phigh));
         qDebug() << "截取横屏图片,图片宽高:" << cimg.width() << "," << cimg.height();
     }
     else
     {
-        cimg = img.copy(QRect(0,(phigh - pwidth)/2,pwidth,pwidth));
+        cimg = img.copy(QRect(0, (phigh - pwidth) / 2, pwidth, pwidth));
         qDebug() << "截取竖屏图片,图片宽高:" << cimg.width() << "," << cimg.height();
     }
 
     //头像统一设置为350*350
-    cimg = cimg.scaled(350,350,Qt::IgnoreAspectRatio,Qt::SmoothTransformation);
+    cimg = cimg.scaled(350, 350, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
     qDebug() << "图片宽高:" << cimg.width() << "," << cimg.height();
 
     //更新图片
@@ -164,6 +170,7 @@ void PersonalData::CutPhoto(QString path)
 
     //删除原来的头像
     bool ok = QFile::remove(fileName);
+
     if(!ok)
     {
         qDebug() << "删除头像失败";
@@ -187,12 +194,14 @@ void PersonalData::on_HeadShotBtn_clicked()
 {
     if(m_isMe)
     {
-        QString hsFile = QFileDialog::getOpenFileName(this,"更改头像","","Picture Files(*.jpg;*.jpeg;*.png)");
+        QString hsFile = QFileDialog::getOpenFileName(this, "更改头像", "", "Picture Files(*.jpg;*.jpeg;*.png)");
+
         if(hsFile == "")
         {
             qDebug() << "未选择图像";
             return;
         }
+
         //qDebug() << "修改头像; " << hsFile;
         CutPhoto(hsFile);
         emit ChangingHeadShot();
